@@ -6,7 +6,7 @@ OpenRouter gives access to hundreds of models from many providers (Anthropic, Go
 
 ## Requirements
 
-- PHP 8.2 or higher
+- PHP 8.3 or higher
 - When using with WordPress, requires WordPress 7.2 or higher
 - An [OpenRouter API key](https://openrouter.ai/settings/keys)
 

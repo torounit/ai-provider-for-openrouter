@@ -5,7 +5,7 @@
  * Plugin URI:        https://github.com/torounit/ai-provider-for-openrouter
  * Description:       AI Provider for OpenRouter for the WordPress AI Client.
  * Requires at least: 7.2
- * Requires PHP:      8.2
+ * Requires PHP:      8.3
  * Version:           0.1.0
  * Author:            Toro_Unit
  * Author URI:        https://torounit.com/

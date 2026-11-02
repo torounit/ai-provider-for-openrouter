@@ -14,7 +14,7 @@
     <arg value="sp"/>
 
     <!-- Set minimum supported PHP version -->
-    <config name="testVersion" value="8.2-"/>
+    <config name="testVersion" value="8.3-"/>
 
     <!-- Enable colors in output -->
     <arg name="colors"/>
@@ -27,7 +27,7 @@
         <exclude-pattern>plugin.php</exclude-pattern>
     </rule>
 
-    <!-- Check PHP 8.2 compatibility -->
+    <!-- Check PHP 8.3 compatibility -->
     <rule ref="PHPCompatibility"/>
 
     <!-- Enforce namespace best practices -->

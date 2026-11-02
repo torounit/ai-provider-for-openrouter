@@ -20,7 +20,7 @@
         "source": "https://github.com/torounit/ai-provider-for-openrouter"
     },
     "require": {
-        "php": ">=8.2"
+        "php": ">=8.3"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
@@ -53,7 +53,7 @@
         },
         "optimize-autoloader": true,
         "platform": {
-            "php": "8.2"
+            "php": "8.3"
         },
         "sort-packages": true
     },
