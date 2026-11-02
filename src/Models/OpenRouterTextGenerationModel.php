@@ -13,6 +13,7 @@ use WordPress\AiClient\Messages\Enums\MessagePartChannelEnum;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\Enums\HttpMethodEnum;
 use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCompatibleTextGenerationModel;
+use WordPress\AiClient\Tools\DTO\WebSearch;
 
 /**
  * Class for an OpenRouter text generation model using the OpenAI compatible Chat Completions API.
@@ -61,7 +62,43 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
             $params['top_k'] = $topK;
         }
 
+        $webSearch = $this->getConfig()->getWebSearch();
+        if ($webSearch !== null) {
+            if (isset($params['plugins'])) {
+                throw new InvalidArgumentException(
+                    'The custom option "plugins" conflicts with an existing parameter.'
+                );
+            }
+            $params['plugins'] = [$this->prepareWebSearchPlugin($webSearch)];
+        }
+
         return $params;
+    }
+
+    /**
+     * Returns the web search plugin configuration, which enables web search for any model.
+     *
+     * @since 0.1.0
+     *
+     * @link https://openrouter.ai/docs/guides/features/web-search
+     *
+     * @param WebSearch $webSearch The web search configuration.
+     * @return array<string, mixed> The plugin configuration.
+     */
+    private function prepareWebSearchPlugin(WebSearch $webSearch): array
+    {
+        $plugin = ['id' => 'web'];
+
+        $allowedDomains = $webSearch->getAllowedDomains();
+        if ($allowedDomains) {
+            $plugin['include_domains'] = $allowedDomains;
+        }
+        $disallowedDomains = $webSearch->getDisallowedDomains();
+        if ($disallowedDomains) {
+            $plugin['exclude_domains'] = $disallowedDomains;
+        }
+
+        return $plugin;
     }
 
     /**

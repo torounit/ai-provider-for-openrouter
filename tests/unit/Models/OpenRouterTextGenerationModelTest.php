@@ -19,6 +19,7 @@ use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Models\DTO\ModelConfig;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 use WordPress\AiClient\Providers\Models\Enums\CapabilityEnum;
+use WordPress\AiClient\Tools\DTO\WebSearch;
 
 /**
  * @covers \ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel
@@ -252,6 +253,53 @@ class OpenRouterTextGenerationModelTest extends TestCase
             'not a list' => ['{"id":"rs_1"}'],
             'not reasoning details' => ['[1,2]'],
         ];
+    }
+
+    public function testPrepareGenerateTextParamsEnablesWebSearchPlugin(): void
+    {
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch());
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame([['id' => 'web']], $params['plugins']);
+    }
+
+    public function testPrepareGenerateTextParamsPassesWebSearchDomains(): void
+    {
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch(['wordpress.org', '*.wordpress.com'], ['example.com']));
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame(
+            [
+                [
+                    'id' => 'web',
+                    'include_domains' => ['wordpress.org', '*.wordpress.com'],
+                    'exclude_domains' => ['example.com'],
+                ],
+            ],
+            $params['plugins']
+        );
+    }
+
+    public function testPrepareGenerateTextParamsOmitsPluginsWithoutWebSearch(): void
+    {
+        $params = $this->prepareParams(new ModelConfig());
+
+        $this->assertArrayNotHasKey('plugins', $params);
+    }
+
+    public function testPrepareGenerateTextParamsRejectsConflictingPlugins(): void
+    {
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch());
+        $config->setCustomOptions(['plugins' => [['id' => 'file-parser']]]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->prepareParams($config);
     }
 
     public function testPrepareGenerateTextParamsIncludesTopK(): void
