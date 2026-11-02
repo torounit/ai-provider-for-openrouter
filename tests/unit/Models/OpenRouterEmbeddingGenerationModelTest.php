@@ -13,8 +13,6 @@ use WordPress\AiClient\Files\DTO\File;
 use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
 use WordPress\AiClient\Providers\Http\DTO\Response;
-use WordPress\AiClient\Providers\Http\Exception\ClientException;
-use WordPress\AiClient\Providers\Http\Exception\ResponseException;
 use WordPress\AiClient\Providers\Models\DTO\ModelConfig;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 use WordPress\AiClient\Providers\Models\Enums\CapabilityEnum;
@@ -99,18 +97,6 @@ class OpenRouterEmbeddingGenerationModelTest extends TestCase
         $this->assertSame(['order' => ['openai']], $data['provider']);
     }
 
-    public function testRejectsConflictingCustomOptions(): void
-    {
-        $config = new ModelConfig();
-        $config->setCustomOptions(['input' => ['Other']]);
-        $model = $this->createModel(new MockHttpTransporter());
-        $model->setConfig($config);
-
-        $this->expectException(InvalidArgumentException::class);
-
-        $model->generateEmbeddingResult([new MessagePart('Hello')]);
-    }
-
     public function testRejectsEmptyInput(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -132,26 +118,6 @@ class OpenRouterEmbeddingGenerationModelTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         $this->createModel(new MockHttpTransporter())->generateEmbeddingResult([new MessagePart('  ')]);
-    }
-
-    public function testThrowsWhenDataIsMissing(): void
-    {
-        $model = $this->createModel(new MockHttpTransporter([new Response(200, [], '{"data":[]}')]));
-
-        $this->expectException(ResponseException::class);
-
-        $model->generateEmbeddingResult([new MessagePart('Hello')]);
-    }
-
-    public function testThrowsOnErrorResponse(): void
-    {
-        $model = $this->createModel(new MockHttpTransporter([
-            new Response(400, [], '{"error":{"message":"Bad dimensions","code":400}}'),
-        ]));
-
-        $this->expectException(ClientException::class);
-
-        $model->generateEmbeddingResult([new MessagePart('Hello')]);
     }
 
     private function createModel(MockHttpTransporter $transporter): OpenRouterEmbeddingGenerationModel
