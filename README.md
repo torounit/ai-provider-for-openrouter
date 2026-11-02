@@ -77,8 +77,8 @@ echo $result->toText();
 
 Available models and their supported options are dynamically discovered from the OpenRouter API. Model IDs are OpenRouter's own IDs, e.g. `anthropic/claude-sonnet-5.5` or `nvidia/nemotron-3.5-super-vl:free`. See the [OpenRouter models list](https://openrouter.ai/models) for all models.
 
-- `openrouter/auto` is listed first, so it is used when no model is specified. It picks a suitable model for each prompt.
-- `openrouter/free` routes to free models only.
+- `openrouter/free` is listed first, so it is used when no model is specified. It routes to free models only, so prompts without a model preference cost nothing.
+- `openrouter/auto` picks a suitable model for each prompt from all models, including paid ones.
 - Models that cannot be used through the Chat Completions API (e.g. `:batch` variants) are not listed.
 
 ## Configuration

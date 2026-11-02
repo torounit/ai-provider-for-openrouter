@@ -20,15 +20,17 @@ use WordPress\AiClient\Providers\Models\Enums\OptionEnum;
  */
 class OpenRouterModelMetadataDirectoryTest extends TestCase
 {
-    public function testListsChatModelsWithAutoRouterFirst(): void
+    public function testListsChatModelsWithFreeRouterFirst(): void
     {
+        // The free models router comes first so that prompts without a model preference cost nothing.
         $this->assertSame(
             [
-                'openrouter/auto',
+                'openrouter/free',
                 'anthropic/claude-haiku-5.5',
                 'nvidia/nemotron-3.5-super-vl:free',
                 'meta/muse-spark-open',
                 'google/gemini-nano-banana-2.1',
+                'openrouter/auto',
             ],
             array_keys($this->parseFixture())
         );

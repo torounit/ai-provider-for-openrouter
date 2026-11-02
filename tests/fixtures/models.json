@@ -294,6 +294,55 @@
                 "completion": "-1"
             },
             "context_length": 2000000
+        },
+        {
+            "id": "openrouter/free",
+            "name": "Free Models Router",
+            "architecture": {
+                "modality": "text+image->text",
+                "input_modalities": [
+                    "text",
+                    "image"
+                ],
+                "output_modalities": [
+                    "text"
+                ],
+                "tokenizer": "Router",
+                "instruct_type": null
+            },
+            "supported_parameters": [
+                "frequency_penalty",
+                "include_reasoning",
+                "logprobs",
+                "max_completion_tokens",
+                "max_tokens",
+                "min_p",
+                "presence_penalty",
+                "reasoning",
+                "reasoning_effort",
+                "repetition_penalty",
+                "response_format",
+                "seed",
+                "stop",
+                "structured_outputs",
+                "temperature",
+                "tool_choice",
+                "tools",
+                "top_k",
+                "top_logprobs",
+                "top_p"
+            ],
+            "endpoints": [
+                "/api/v1/chat/completions",
+                "/api/v1/completions",
+                "/api/v1/messages",
+                "/api/v1/responses"
+            ],
+            "pricing": {
+                "prompt": "0",
+                "completion": "0"
+            },
+            "context_length": 200000
         }
     ]
 }

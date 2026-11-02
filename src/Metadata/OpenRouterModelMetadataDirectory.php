@@ -53,13 +53,14 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     /**
      * The model ID that is sorted first, so that it is used when no model preference is given.
      *
-     * The auto router picks a suitable model for each prompt.
+     * The free models router picks one of the free models for each prompt, so that using the provider without a
+     * model preference does not incur costs.
      *
      * @since 0.1.0
      *
      * @var string
      */
-    private const DEFAULT_MODEL_ID = 'openrouter/auto';
+    private const DEFAULT_MODEL_ID = 'openrouter/free';
 
     /**
      * {@inheritDoc}
