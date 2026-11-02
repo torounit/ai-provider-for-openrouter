@@ -128,6 +128,51 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->assertSame($details, json_decode((string) $parts[0]->getThoughtSignature(), true));
     }
 
+    public function testGenerateTextResultDoesNotDuplicateReasoningContent(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'format' => 'unknown', 'index' => 0]];
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning_content' => 'Thinking.',
+                'reasoning' => 'Thinking.',
+                'reasoning_details' => $details,
+            ])]),
+            'vendor/model'
+        );
+
+        $parts = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')])
+            ->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertCount(2, $parts);
+        $this->assertTrue($parts[0]->getChannel()->isThought());
+        $this->assertSame('Thinking.', $parts[0]->getText());
+        $this->assertSame($details, json_decode((string) $parts[0]->getThoughtSignature(), true));
+    }
+
+    public function testGenerateTextResultUsesReasoningDetailsTextWithoutReasoning(): void
+    {
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning' => null,
+                'reasoning_details' => [
+                    ['type' => 'reasoning.summary', 'summary' => 'Checked divisors.', 'index' => 0],
+                    ['type' => 'reasoning.text', 'text' => '7 × 13 = 91.', 'index' => 1],
+                    ['type' => 'reasoning.encrypted', 'data' => 'abc', 'index' => 2],
+                ],
+            ])]),
+            'vendor/model'
+        );
+
+        $parts = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')])
+            ->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertSame("Checked divisors.\n7 × 13 = 91.", $parts[0]->getText());
+    }
+
     public function testPrepareGenerateTextParamsSendsReasoningDetailsBack(): void
     {
         $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'format' => 'unknown', 'index' => 0]];
@@ -150,6 +195,35 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->assertSame($details, $params['messages'][2]['reasoning_details']);
         $this->assertSame([['type' => 'text', 'text' => 'No']], $params['messages'][2]['content']);
         $this->assertArrayNotHasKey('reasoning_details', $params['messages'][3]);
+    }
+
+    public function testPrepareGenerateTextParamsSendsReasoningDetailsOnlyForModelMessages(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'index' => 0]];
+
+        $params = $this->prepareParamsForMessages(new ModelConfig(), [
+            new Message(MessageRoleEnum::user(), [
+                new MessagePart('Thinking.', MessagePartChannelEnum::thought(), (string) json_encode($details)),
+                new MessagePart('Hi'),
+            ]),
+        ]);
+
+        $this->assertArrayNotHasKey('reasoning_details', $params['messages'][0]);
+    }
+
+    public function testPrepareGenerateTextParamsSkipsEntriesThatAreNotReasoningDetails(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'index' => 0]];
+        $signature = (string) json_encode(array_merge($details, [1, ['type' => 'other'], ['text' => 'x']]));
+
+        $params = $this->prepareParamsForMessages(new ModelConfig(), [
+            new Message(MessageRoleEnum::model(), [
+                new MessagePart('Thinking.', MessagePartChannelEnum::thought(), $signature),
+                new MessagePart('No'),
+            ]),
+        ]);
+
+        $this->assertSame($details, $params['messages'][0]['reasoning_details']);
     }
 
     /**
@@ -176,6 +250,7 @@ class OpenRouterTextGenerationModelTest extends TestCase
             'none' => [null],
             'invalid json' => ['{not json'],
             'not a list' => ['{"id":"rs_1"}'],
+            'not reasoning details' => ['[1,2]'],
         ];
     }
 
@@ -350,26 +425,11 @@ class OpenRouterTextGenerationModelTest extends TestCase
      */
     private function prepareParams(ModelConfig $config, ?array $parts = null): array
     {
-        $model = new class (
-            new ModelMetadata('vendor/model', 'Model', [CapabilityEnum::textGeneration()], []),
-            OpenRouterProvider::metadata()
-        ) extends OpenRouterTextGenerationModel {
-            /**
-             * @param list<Message> $prompt
-             * @return array<string, mixed>
-             */
-            public function exposePrepareGenerateTextParams(array $prompt): array
-            {
-                return $this->prepareGenerateTextParams($prompt);
-            }
-        };
-        $model->setConfig($config);
-
         $message = $parts !== null
             ? new Message(MessageRoleEnum::user(), $parts)
             : $this->createUserMessage('Hi');
 
-        return $model->exposePrepareGenerateTextParams([$message]);
+        return $this->prepareParamsForMessages($config, [$message]);
     }
 
     /**

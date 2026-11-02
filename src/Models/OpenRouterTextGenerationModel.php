@@ -76,11 +76,14 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      */
     protected function prepareMessagesParam(array $messages, ?string $systemInstruction = null): array
     {
-        $messagesParam = parent::prepareMessagesParam($messages, $systemInstruction);
+        $messagesParam = array_values(parent::prepareMessagesParam($messages, $systemInstruction));
 
         // The system instruction, if any, is prepended to the messages.
         $offset = count($messagesParam) - count($messages);
         foreach (array_values($messages) as $index => $message) {
+            if (!$message->getRole()->isModel()) {
+                continue;
+            }
             $reasoningDetails = $this->getReasoningDetails($message);
             if ($reasoningDetails) {
                 $messagesParam[$index + $offset]['reasoning_details'] = $reasoningDetails;
@@ -96,7 +99,7 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      * @since 0.1.0
      *
      * @param Message $message The message.
-     * @return list<mixed> The reasoning details, or an empty list if there are none.
+     * @return list<array<mixed>> The reasoning details, or an empty list if there are none.
      */
     private function getReasoningDetails(Message $message): array
     {
@@ -113,7 +116,17 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
             if (!is_array($decoded) || !array_is_list($decoded)) {
                 continue;
             }
-            $reasoningDetails = array_merge($reasoningDetails, $decoded);
+            foreach ($decoded as $entry) {
+                // Skip signatures from other providers, which OpenRouter would reject.
+                if (
+                    is_array($entry) &&
+                    isset($entry['type']) &&
+                    is_string($entry['type']) &&
+                    str_starts_with($entry['type'], 'reasoning.')
+                ) {
+                    $reasoningDetails[] = $entry;
+                }
+            }
         }
         return $reasoningDetails;
     }
@@ -130,27 +143,56 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
     {
         $parts = parent::parseResponseChoiceMessageParts($messageData, $index);
 
-        $reasoning = isset($messageData['reasoning']) && is_string($messageData['reasoning'])
-            ? $messageData['reasoning']
-            : '';
         $reasoningDetails = isset($messageData['reasoning_details']) && is_array($messageData['reasoning_details'])
             ? $messageData['reasoning_details']
             : [];
+        $reasoning = isset($messageData['reasoning']) && is_string($messageData['reasoning'])
+            ? $messageData['reasoning']
+            : $this->getReasoningDetailsText($reasoningDetails);
+
+        // The parent parses `reasoning_content` into a thought part, which this replaces to avoid duplicates.
+        if (isset($parts[0]) && $parts[0]->getChannel()->isThought()) {
+            if ($reasoning === '') {
+                $reasoning = (string) $parts[0]->getText();
+            }
+            array_shift($parts);
+        }
+
         if ($reasoning === '' && !$reasoningDetails) {
             return $parts;
         }
 
-        $signature = $reasoningDetails ? json_encode($reasoningDetails) : false;
+        $signature = $reasoningDetails ? json_encode($reasoningDetails) : null;
         array_unshift(
             $parts,
-            new MessagePart(
-                $reasoning,
-                MessagePartChannelEnum::thought(),
-                is_string($signature) ? $signature : null
-            )
+            new MessagePart($reasoning, MessagePartChannelEnum::thought(), $signature ?: null)
         );
 
         return $parts;
+    }
+
+    /**
+     * Returns the readable text of the given reasoning details.
+     *
+     * @since 0.1.0
+     *
+     * @param array<mixed> $reasoningDetails The reasoning details from the API response.
+     * @return string The text and summaries of the reasoning details, one per line.
+     */
+    private function getReasoningDetailsText(array $reasoningDetails): string
+    {
+        $texts = [];
+        foreach ($reasoningDetails as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            if (isset($entry['text']) && is_string($entry['text'])) {
+                $texts[] = $entry['text'];
+            } elseif (isset($entry['summary']) && is_string($entry['summary'])) {
+                $texts[] = $entry['summary'];
+            }
+        }
+        return implode("\n", $texts);
     }
 
     /**
