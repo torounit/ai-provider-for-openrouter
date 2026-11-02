@@ -152,10 +152,13 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
                 new SupportedOption(OptionEnum::inputModalities(), [[ModalityEnum::text()]]),
             ];
             /*
-             * The API does not tell which models accept the dimensions parameter, and most of them reject it.
+             * The API does not list the dimensions parameter for any model yet, and most of them reject it.
              * OpenAI's third generation models are known to support it.
              */
-            if (str_starts_with($modelData['id'], 'openai/text-embedding-3-')) {
+            if (
+                in_array('dimensions', $modelData['supported_parameters'] ?? [], true) ||
+                str_starts_with($modelData['id'], 'openai/text-embedding-3-')
+            ) {
                 $options[] = new SupportedOption(OptionEnum::dimensions());
             }
             $options[] = new SupportedOption(OptionEnum::customOptions());

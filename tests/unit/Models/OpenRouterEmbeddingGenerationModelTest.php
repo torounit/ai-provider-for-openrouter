@@ -60,6 +60,24 @@ class OpenRouterEmbeddingGenerationModelTest extends TestCase
         );
     }
 
+    public function testGenerateEmbeddingResultOrdersEmbeddingsByIndex(): void
+    {
+        $model = $this->createModel(new MockHttpTransporter([
+            new Response(200, [], (string) json_encode([
+                'data' => [
+                    ['embedding' => [0.4, 0.5], 'index' => 1],
+                    ['embedding' => [0.1, 0.2], 'index' => 0],
+                ],
+            ])),
+        ]));
+
+        $embeddings = $model->generateEmbeddingResult([new MessagePart('Hello'), new MessagePart('World')])
+            ->getEmbeddings();
+
+        $this->assertSame([0.1, 0.2], $embeddings[0]->getValues());
+        $this->assertSame([0.4, 0.5], $embeddings[1]->getValues());
+    }
+
     public function testGenerateEmbeddingResultSendsDimensionsAndCustomOptions(): void
     {
         $transporter = new MockHttpTransporter([

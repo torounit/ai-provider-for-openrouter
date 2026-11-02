@@ -184,11 +184,17 @@ class OpenRouterEmbeddingGenerationModel extends AbstractApiBasedModel implement
                     'The value must be an embedding vector.'
                 );
             }
-            $embeddings[] = new Embedding(
+            // OpenRouter routes to many providers, so the order is restored from the index if there is one.
+            $position = isset($embeddingData['index']) && is_int($embeddingData['index'])
+                ? $embeddingData['index']
+                : $index;
+            $embeddings[$position] = new Embedding(
                 $embeddingData['embedding'],
                 count($embeddingData['embedding'])
             );
         }
+        ksort($embeddings);
+        $embeddings = array_values($embeddings);
 
         $usage = isset($responseData['usage']) && is_array($responseData['usage']) ? $responseData['usage'] : [];
         $tokenUsage = new TokenUsage(

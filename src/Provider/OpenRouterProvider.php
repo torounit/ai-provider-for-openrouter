@@ -70,11 +70,11 @@ class OpenRouterProvider extends AbstractApiProvider
      */
     protected static function createProviderMetadata(): ProviderMetadata
     {
-        $description = 'Text generation with hundreds of models from many providers through a single API key.';
+        $description = 'Text and embedding generation with hundreds of models through a single API key.';
         // For WordPress, we should translate the description.
         if (function_exists('__')) {
             $translatedDescription = __(
-                'Text generation with hundreds of models from many providers through a single API key.',
+                'Text and embedding generation with hundreds of models through a single API key.',
                 'ai-provider-for-openrouter'
             );
             if (is_string($translatedDescription)) {

@@ -188,6 +188,27 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         );
     }
 
+    public function testEmbeddingModelsAdvertiseDimensionsFromSupportedParameters(): void
+    {
+        $directory = new class extends OpenRouterModelMetadataDirectory {
+            /**
+             * @return list<ModelMetadata>
+             */
+            public function exposeParseResponseToEmbeddingModelMetadataList(Response $response): array
+            {
+                return $this->parseResponseToEmbeddingModelMetadataList($response);
+            }
+        };
+
+        $response = new Response(200, [], (string) json_encode([
+            'data' => [['id' => 'qwen/qwen3-embedding-8b', 'supported_parameters' => ['dimensions']]],
+        ]));
+
+        $models = $directory->exposeParseResponseToEmbeddingModelMetadataList($response);
+
+        $this->assertContains((string) OptionEnum::dimensions(), $this->getOptionNames($models[0]));
+    }
+
     private function createFixtureTransporter(): MockHttpTransporter
     {
         $fixtures = dirname(__DIR__, 2) . '/fixtures';
