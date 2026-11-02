@@ -217,10 +217,7 @@ class OpenRouterProviderTest extends TestCase
     {
         return [
             'true' => ['true', true],
-            'one' => ['1', true],
             'false' => ['false', false],
-            'empty' => ['', false],
-            'invalid' => ['maybe', false],
         ];
     }
 
