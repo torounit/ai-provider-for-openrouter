@@ -59,6 +59,15 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     private const IMAGES_ENDPOINT = '/api/v1/images';
 
     /**
+     * The image formats that the images API can return.
+     *
+     * @since 0.1.0
+     *
+     * @var list<string>
+     */
+    private const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+    /**
      * The model ID that is sorted first, so that it is used when no model preference is given.
      *
      * The free models router picks one of the free models for each prompt, so that using the provider without a
@@ -126,10 +135,11 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
                 continue;
             }
-            if (!$this->supportsChatCompletions($modelData)) {
-                continue;
+            if ($this->supportsChatCompletions($modelData)) {
+                $models[] = $this->createTextModelMetadata($modelData);
+            } elseif (in_array(self::IMAGES_ENDPOINT, $modelData['endpoints'] ?? [], true)) {
+                $models[] = $this->createImageModelMetadata($modelData);
             }
-            $models[] = $this->createTextModelMetadata($modelData);
         }
 
         return $this->sortModels($models);
@@ -237,7 +247,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             $outputMimeTypes = ['text/plain', 'application/json'];
         }
         if ($supportsImageGeneration) {
-            $outputMimeTypes = array_merge($outputMimeTypes, ['image/png', 'image/jpeg', 'image/webp']);
+            $outputMimeTypes = array_merge($outputMimeTypes, self::IMAGE_MIME_TYPES);
         }
         if ($outputMimeTypes) {
             $options[] = new SupportedOption(OptionEnum::outputMimeType(), $outputMimeTypes);
@@ -260,11 +270,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
                 [ModalityEnum::text()],
                 [ModalityEnum::image()],
             ]);
-            $options[] = new SupportedOption(OptionEnum::candidateCount());
-            // The images API always returns base64 data.
-            $options[] = new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]);
-            $options[] = new SupportedOption(OptionEnum::outputMediaOrientation());
-            $options[] = new SupportedOption(OptionEnum::outputMediaAspectRatio());
+            $options = array_merge($options, $this->getImageOptions());
         } else {
             $options[] = new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::text()]]);
         }
@@ -275,6 +281,50 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             $capabilities,
             $options
         );
+    }
+
+    /**
+     * Creates the metadata for an image generation model that does not support chat completions.
+     *
+     * @since 0.1.0
+     *
+     * @param ModelData $modelData The model data from the API response.
+     * @return ModelMetadata The model metadata.
+     */
+    private function createImageModelMetadata(array $modelData): ModelMetadata
+    {
+        return new ModelMetadata(
+            $modelData['id'],
+            $modelData['name'] ?? $modelData['id'],
+            [CapabilityEnum::imageGeneration()],
+            array_merge(
+                [
+                    new SupportedOption(OptionEnum::inputModalities(), [[ModalityEnum::text()]]),
+                    new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::image()]]),
+                    new SupportedOption(OptionEnum::outputMimeType(), self::IMAGE_MIME_TYPES),
+                    new SupportedOption(OptionEnum::customOptions()),
+                ],
+                $this->getImageOptions()
+            )
+        );
+    }
+
+    /**
+     * Returns the options specific to the images API.
+     *
+     * @since 0.1.0
+     *
+     * @return list<SupportedOption> The image generation options.
+     */
+    private function getImageOptions(): array
+    {
+        return [
+            new SupportedOption(OptionEnum::candidateCount()),
+            // The images API always returns base64 data.
+            new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]),
+            new SupportedOption(OptionEnum::outputMediaOrientation()),
+            new SupportedOption(OptionEnum::outputMediaAspectRatio()),
+        ];
     }
 
     /**

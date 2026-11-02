@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ToroUnit\OpenRouterAiProvider\Models;
 
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
+use WordPress\AiClient\Common\Exception\InvalidArgumentException;
 use WordPress\AiClient\Files\Enums\MediaOrientationEnum;
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Providers\Http\DTO\Request;
@@ -64,16 +65,22 @@ class OpenRouterImageGenerationModel extends AbstractOpenAiCompatibleImageGenera
     {
         $params = parent::prepareGenerateImageParams($prompt);
 
-        // The API always returns base64 data, and takes an aspect ratio instead of a size.
-        $requestParams = [];
-        foreach ($params as $key => $value) {
-            if (!is_string($key) || $key === 'response_format') {
-                continue;
+        // The API always returns base64 data.
+        unset($params['response_format']);
+
+        // The parent sets the size only from the configured aspect ratio or orientation, which is an aspect ratio here.
+        $config = $this->getConfig();
+        if ($config->getOutputMediaAspectRatio() !== null || $config->getOutputMediaOrientation() !== null) {
+            if (isset($params['aspect_ratio'])) {
+                throw new InvalidArgumentException(
+                    'The custom option "aspect_ratio" conflicts with an existing parameter.'
+                );
             }
-            $requestParams[$key === 'size' ? 'aspect_ratio' : $key] = $value;
+            $params['aspect_ratio'] = $params['size'] ?? null;
+            unset($params['size']);
         }
 
-        return $requestParams;
+        return $params;
     }
 
     /**
@@ -118,14 +125,16 @@ class OpenRouterImageGenerationModel extends AbstractOpenAiCompatibleImageGenera
             return $result;
         }
 
+        $promptTokens = is_int($usage['prompt_tokens'] ?? null) ? $usage['prompt_tokens'] : 0;
+        $completionTokens = is_int($usage['completion_tokens'] ?? null) ? $usage['completion_tokens'] : 0;
+        $totalTokens = is_int($usage['total_tokens'] ?? null)
+            ? $usage['total_tokens']
+            : $promptTokens + $completionTokens;
+
         return new GenerativeAiResult(
             $result->getId(),
             $result->getCandidates(),
-            new TokenUsage(
-                is_int($usage['prompt_tokens'] ?? null) ? $usage['prompt_tokens'] : 0,
-                is_int($usage['completion_tokens'] ?? null) ? $usage['completion_tokens'] : 0,
-                is_int($usage['total_tokens'] ?? null) ? $usage['total_tokens'] : 0
-            ),
+            new TokenUsage($promptTokens, $completionTokens, $totalTokens),
             $result->getProviderMetadata(),
             $result->getModelMetadata(),
             $result->getAdditionalData()

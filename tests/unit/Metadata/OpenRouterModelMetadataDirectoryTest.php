@@ -128,6 +128,34 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertArrayHasKey((string) OptionEnum::outputMediaAspectRatio(), $options);
     }
 
+    public function testListsImageOnlyModels(): void
+    {
+        $models = $this->parseResponse([
+            [
+                'id' => 'vendor/image',
+                'name' => 'Image',
+                'architecture' => ['input_modalities' => ['text'], 'output_modalities' => ['image']],
+                'endpoints' => ['/api/v1/images'],
+            ],
+        ]);
+
+        $model = $this->findModel($models, 'vendor/image');
+        $this->assertSame(
+            [(string) CapabilityEnum::imageGeneration()],
+            array_map('strval', $model->getSupportedCapabilities())
+        );
+
+        $options = [];
+        foreach ($model->getSupportedOptions() as $option) {
+            $options[(string) $option->getName()] = $option;
+        }
+        $this->assertTrue($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::image()]));
+        $this->assertFalse($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::text()]));
+        $this->assertTrue($options[(string) OptionEnum::inputModalities()]->isSupportedValue([ModalityEnum::text()]));
+        $this->assertFalse($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('application/json'));
+        $this->assertArrayNotHasKey((string) OptionEnum::systemInstruction(), $options);
+    }
+
     public function testModelsWithoutImagesEndpointDoNotAdvertiseImageGeneration(): void
     {
         // The auto router outputs images in chat completions, but has no images endpoint.

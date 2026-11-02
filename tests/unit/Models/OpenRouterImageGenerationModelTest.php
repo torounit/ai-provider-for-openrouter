@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
+use WordPress\AiClient\Common\Exception\InvalidArgumentException;
 use WordPress\AiClient\Files\Enums\MediaOrientationEnum;
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
@@ -93,6 +94,51 @@ class OpenRouterImageGenerationModelTest extends TestCase
             ],
             $request->getData()
         );
+    }
+
+    public function testGenerateImageResultRejectsConflictingAspectRatio(): void
+    {
+        $config = new ModelConfig();
+        $config->setOutputMediaAspectRatio('16:9');
+        $config->setCustomOptions(['aspect_ratio' => '1:1']);
+        $model = $this->createModel(new MockHttpTransporter([$this->createImageResponse()]));
+        $model->setConfig($config);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $model->generateImageResult([$this->createUserMessage('A cat')]);
+    }
+
+    public function testGenerateImageResultPassesCustomSizeThrough(): void
+    {
+        $transporter = new MockHttpTransporter([$this->createImageResponse()]);
+        $config = new ModelConfig();
+        $config->setCustomOptions(['size' => '2K']);
+        $model = $this->createModel($transporter);
+        $model->setConfig($config);
+
+        $model->generateImageResult([$this->createUserMessage('A cat')]);
+
+        $request = $transporter->getLastRequest();
+        $this->assertNotNull($request);
+        $data = $request->getData();
+        $this->assertNotNull($data);
+        $this->assertSame('2K', $data['size']);
+        $this->assertArrayNotHasKey('aspect_ratio', $data);
+    }
+
+    public function testGenerateImageResultCalculatesMissingTotalTokens(): void
+    {
+        $model = $this->createModel(new MockHttpTransporter([
+            new Response(200, [], (string) json_encode([
+                'data' => [['b64_json' => base64_encode('fake-image')]],
+                'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 1290],
+            ])),
+        ]));
+
+        $result = $model->generateImageResult([$this->createUserMessage('A cat')]);
+
+        $this->assertSame(1300, $result->getTokenUsage()->getTotalTokens());
     }
 
     /**
