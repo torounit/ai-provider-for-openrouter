@@ -8,6 +8,8 @@ use Psr\SimpleCache\CacheInterface;
 
 /**
  * In-memory PSR-16 cache, standing in for a persistent object cache.
+ *
+ * Parameters are untyped and return types are declared, so that it implements both psr/simple-cache 1.x and 3.x.
  */
 class ArrayCache implements CacheInterface
 {
@@ -16,7 +18,7 @@ class ArrayCache implements CacheInterface
      */
     private array $values = [];
 
-    public function get($key, $default = null)
+    public function get($key, $default = null): mixed
     {
         return $this->values[$key] ?? $default;
     }
