@@ -14,30 +14,24 @@ use WordPress\AiClient\Results\DTO\GenerativeAiResult;
  * Class for an OpenRouter model that supports both text generation and text to speech conversion.
  *
  * @since 0.1.0
+ *
+ * @extends AbstractOpenRouterTextAndMediaGenerationModel<OpenRouterTextToSpeechConversionModel>
  */
 class OpenRouterTextAndSpeechGenerationModel extends AbstractOpenRouterTextAndMediaGenerationModel implements
     TextToSpeechConversionModelInterface
 {
     /**
-     * The model used for the other capability.
-     *
-     * @since 0.1.0
-     *
-     * @var OpenRouterTextToSpeechConversionModel
-     */
-    private OpenRouterTextToSpeechConversionModel $model;
-
-    /**
      * {@inheritDoc}
      *
      * @since 0.1.0
+     *
+     * @return OpenRouterTextToSpeechConversionModel The model.
      */
     protected function createMediaModel(
         ModelMetadata $metadata,
         ProviderMetadata $providerMetadata
     ): AbstractApiBasedModel {
-        $this->model = new OpenRouterTextToSpeechConversionModel($metadata, $providerMetadata);
-        return $this->model;
+        return new OpenRouterTextToSpeechConversionModel($metadata, $providerMetadata);
     }
 
     /**
@@ -47,6 +41,6 @@ class OpenRouterTextAndSpeechGenerationModel extends AbstractOpenRouterTextAndMe
      */
     public function convertTextToSpeechResult(array $prompt): GenerativeAiResult
     {
-        return $this->model->convertTextToSpeechResult($prompt);
+        return $this->getMediaModel()->convertTextToSpeechResult($prompt);
     }
 }

@@ -11,7 +11,6 @@ use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndSpeechGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
-use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextToSpeechConversionModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProviderAvailability;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
@@ -128,15 +127,6 @@ class OpenRouterProviderTest extends TestCase
         );
 
         $this->assertInstanceOf(OpenRouterTextAndSpeechGenerationModel::class, $model);
-    }
-
-    public function testCreatesTextToSpeechConversionModel(): void
-    {
-        $model = $this->createModel(
-            new ModelMetadata('vendor/speech', 'Speech', [CapabilityEnum::textToSpeechConversion()], [])
-        );
-
-        $this->assertInstanceOf(OpenRouterTextToSpeechConversionModel::class, $model);
     }
 
     public function testThrowsForUnsupportedCapabilities(): void

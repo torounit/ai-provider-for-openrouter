@@ -152,6 +152,43 @@ class OpenRouterTextToSpeechConversionModelTest extends TestCase
         $model->convertTextToSpeechResult([$this->createUserMessage('Hello')]);
     }
 
+    public function testConvertTextToSpeechResultThrowsOnStreamError(): void
+    {
+        $body = 'data: ' . json_encode([
+            'choices' => [['delta' => ['audio' => ['data' => base64_encode('ab')]]]],
+        ]) . "\n\n" . 'data: ' . json_encode([
+            'error' => ['message' => 'Provider disconnected', 'code' => 502],
+            'choices' => [['delta' => [], 'finish_reason' => 'error']],
+        ]) . "\n\ndata: [DONE]\n";
+        $model = $this->createModel(new MockHttpTransporter([new Response(200, [], $body)]));
+
+        $this->expectException(ResponseException::class);
+        $this->expectExceptionMessage('Provider disconnected');
+
+        $model->convertTextToSpeechResult([$this->createUserMessage('Hello')]);
+    }
+
+    public function testConvertTextToSpeechResultThrowsOnInvalidAudioChunk(): void
+    {
+        $model = $this->createModel(new MockHttpTransporter([$this->createStreamResponse(['AAAA', '***'])]));
+
+        $this->expectException(ResponseException::class);
+
+        $model->convertTextToSpeechResult([$this->createUserMessage('Hello')]);
+    }
+
+    public function testConvertTextToSpeechResultReportsTruncatedAudio(): void
+    {
+        $body = 'data: ' . json_encode([
+            'choices' => [['delta' => ['audio' => ['data' => base64_encode('ab')]], 'finish_reason' => 'length']],
+        ]) . "\n\ndata: [DONE]\n";
+        $model = $this->createModel(new MockHttpTransporter([new Response(200, [], $body)]));
+
+        $result = $model->convertTextToSpeechResult([$this->createUserMessage('Hello')]);
+
+        $this->assertTrue($result->getCandidates()[0]->getFinishReason()->isLength());
+    }
+
     /**
      * @param list<string> $audioChunks Base64 encoded audio chunks.
      * @param list<string> $transcriptChunks Transcript chunks.

@@ -15,33 +15,29 @@ use WordPress\AiClient\Results\DTO\GenerativeAiResult;
  *
  * Based on the Vercel AI Gateway provider, except that images are generated through the images API.
  *
+ * Based on the Vercel AI Gateway provider, except that images are generated through the images API.
+ *
  * @since 0.1.0
  *
  * @link https://github.com/vercel-labs/ai-gateway-provider-php/blob/66cde97/src/Models/AiGatewayTextAndImageGenerationModel.php
+ *
+ * @extends AbstractOpenRouterTextAndMediaGenerationModel<OpenRouterImageGenerationModel>
  */
 class OpenRouterTextAndImageGenerationModel extends AbstractOpenRouterTextAndMediaGenerationModel implements
     ImageGenerationModelInterface
 {
     /**
-     * The model used for the other capability.
-     *
-     * @since 0.1.0
-     *
-     * @var OpenRouterImageGenerationModel
-     */
-    private OpenRouterImageGenerationModel $model;
-
-    /**
      * {@inheritDoc}
      *
      * @since 0.1.0
+     *
+     * @return OpenRouterImageGenerationModel The model.
      */
     protected function createMediaModel(
         ModelMetadata $metadata,
         ProviderMetadata $providerMetadata
     ): AbstractApiBasedModel {
-        $this->model = new OpenRouterImageGenerationModel($metadata, $providerMetadata);
-        return $this->model;
+        return new OpenRouterImageGenerationModel($metadata, $providerMetadata);
     }
 
     /**
@@ -51,6 +47,6 @@ class OpenRouterTextAndImageGenerationModel extends AbstractOpenRouterTextAndMed
      */
     public function generateImageResult(array $prompt): GenerativeAiResult
     {
-        return $this->model->generateImageResult($prompt);
+        return $this->getMediaModel()->generateImageResult($prompt);
     }
 }

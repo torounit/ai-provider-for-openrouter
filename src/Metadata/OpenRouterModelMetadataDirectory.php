@@ -247,9 +247,12 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         $outputModalities = $modelData['architecture']['output_modalities'] ?? ['text'];
         /*
          * Models that take and output audio can speak a given text. Other models that output audio, such as Lyria,
-         * generate music instead.
+         * generate music instead. Models that also generate images are left out, since a model can only be combined
+         * with one other capability.
          */
-        $supportsSpeech = in_array('audio', $inputModalities, true) && in_array('audio', $outputModalities, true);
+        $supportsSpeech = !$supportsImageGeneration
+            && in_array('audio', $inputModalities, true)
+            && in_array('audio', $outputModalities, true);
 
         $outputMimeTypes = [];
         if (in_array('response_format', $supportedParameters, true)) {

@@ -24,6 +24,8 @@ use WordPress\AiClient\Results\DTO\GenerativeAiResult;
  * other capability to a separate model, keeping the configuration of both in sync.
  *
  * @since 0.1.0
+ *
+ * @template TMediaModel of AbstractApiBasedModel
  */
 abstract class AbstractOpenRouterTextAndMediaGenerationModel implements
     ApiBasedModelInterface,
@@ -45,7 +47,7 @@ abstract class AbstractOpenRouterTextAndMediaGenerationModel implements
      *
      * @since 0.1.0
      *
-     * @var AbstractApiBasedModel
+     * @var TMediaModel
      */
     private AbstractApiBasedModel $mediaModel;
 
@@ -70,12 +72,24 @@ abstract class AbstractOpenRouterTextAndMediaGenerationModel implements
      *
      * @param ModelMetadata    $metadata         The model metadata.
      * @param ProviderMetadata $providerMetadata The provider metadata.
-     * @return AbstractApiBasedModel The model.
+     * @return TMediaModel The model.
      */
     abstract protected function createMediaModel(
         ModelMetadata $metadata,
         ProviderMetadata $providerMetadata
     ): AbstractApiBasedModel;
+
+    /**
+     * Returns the model used for the other capability.
+     *
+     * @since 0.1.0
+     *
+     * @return TMediaModel The model.
+     */
+    protected function getMediaModel(): AbstractApiBasedModel
+    {
+        return $this->mediaModel;
+    }
 
     /**
      * {@inheritDoc}

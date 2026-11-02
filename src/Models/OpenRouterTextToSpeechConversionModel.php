@@ -208,6 +208,7 @@ class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implem
         $audio = '';
         $transcript = '';
         $usage = [];
+        $finishReason = FinishReasonEnum::stop();
 
         $lines = preg_split('/\r?\n/', (string) $response->getBody());
         foreach ($lines ?: [] as $line) {
@@ -225,10 +226,23 @@ class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implem
             if (isset($chunk['usage']) && is_array($chunk['usage'])) {
                 $usage = $chunk['usage'];
             }
+            // Errors that occur after the stream started are sent as a chunk, since the status code is already sent.
+            if (isset($chunk['error']) && is_array($chunk['error'])) {
+                throw ResponseException::fromInvalidData(
+                    $this->providerMetadata()->getName(),
+                    'error',
+                    isset($chunk['error']['message']) && is_string($chunk['error']['message'])
+                        ? $chunk['error']['message']
+                        : 'The stream ended with an error.'
+                );
+            }
 
             $choices = $chunk['choices'] ?? null;
             if (!is_array($choices) || !isset($choices[0]) || !is_array($choices[0])) {
                 continue;
+            }
+            if (($choices[0]['finish_reason'] ?? null) === 'length') {
+                $finishReason = FinishReasonEnum::length();
             }
             $delta = $choices[0]['delta'] ?? null;
             $chunkAudio = is_array($delta) ? ($delta['audio'] ?? null) : null;
@@ -237,7 +251,15 @@ class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implem
             }
             if (isset($chunkAudio['data']) && is_string($chunkAudio['data'])) {
                 // Each chunk is encoded separately, so the chunks cannot be concatenated before decoding.
-                $audio .= (string) base64_decode($chunkAudio['data'], true);
+                $decoded = base64_decode($chunkAudio['data'], true);
+                if ($decoded === false) {
+                    throw ResponseException::fromInvalidData(
+                        $this->providerMetadata()->getName(),
+                        'choices[0].delta.audio.data',
+                        'The value must be base64 encoded audio.'
+                    );
+                }
+                $audio .= $decoded;
             }
             if (isset($chunkAudio['transcript']) && is_string($chunkAudio['transcript'])) {
                 $transcript .= $chunkAudio['transcript'];
@@ -259,7 +281,7 @@ class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implem
 
         return new GenerativeAiResult(
             $id,
-            [new Candidate($message, FinishReasonEnum::stop())],
+            [new Candidate($message, $finishReason)],
             new TokenUsage($promptTokens, $completionTokens, $totalTokens),
             $this->providerMetadata(),
             $this->metadata(),

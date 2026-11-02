@@ -10,7 +10,6 @@ use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndSpeechGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
-use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextToSpeechConversionModel;
 use WordPress\AiClient\Common\Exception\RuntimeException;
 use WordPress\AiClient\Providers\ApiBasedImplementation\AbstractApiProvider;
 use WordPress\AiClient\Providers\Contracts\ModelMetadataDirectoryInterface;
@@ -78,9 +77,6 @@ class OpenRouterProvider extends AbstractApiProvider
         }
         if ($supportsImageGeneration) {
             return new OpenRouterImageGenerationModel($modelMetadata, $providerMetadata);
-        }
-        if ($supportsSpeech) {
-            return new OpenRouterTextToSpeechConversionModel($modelMetadata, $providerMetadata);
         }
 
         throw new RuntimeException(

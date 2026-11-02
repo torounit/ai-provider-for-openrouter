@@ -183,6 +183,22 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertArrayHasKey((string) OptionEnum::outputSpeechVoice(), $options);
     }
 
+    public function testImageModelsDoNotAdvertiseTextToSpeechConversion(): void
+    {
+        // A model can only be created with one of the combined text models.
+        $models = $this->parseResponse([
+            [
+                'id' => 'vendor/omni',
+                'architecture' => ['input_modalities' => ['text', 'audio'], 'output_modalities' => ['text', 'audio']],
+                'endpoints' => ['/api/v1/chat/completions', '/api/v1/images'],
+            ],
+        ]);
+
+        $capabilities = array_map('strval', $this->findModel($models, 'vendor/omni')->getSupportedCapabilities());
+        $this->assertContains((string) CapabilityEnum::imageGeneration(), $capabilities);
+        $this->assertNotContains((string) CapabilityEnum::textToSpeechConversion(), $capabilities);
+    }
+
     public function testMusicModelsDoNotAdvertiseTextToSpeechConversion(): void
     {
         // Lyria outputs audio, but generates music rather than speech, and does not take audio input.
