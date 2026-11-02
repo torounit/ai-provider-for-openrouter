@@ -103,7 +103,7 @@ echo $result->toText();
 
 Available models and their supported options are dynamically discovered from the OpenRouter API. See the [OpenRouter models list](https://openrouter.ai/models) for all models.
 
-Like the Vercel AI Gateway provider, model IDs are exposed without the vendor prefix, e.g. `claude-opus-4.7` for `anthropic/claude-opus-4.7`, so that model preferences match the model IDs of other providers. Anthropic models are also available with dashes, e.g. `claude-opus-4-7`, as in the Anthropic provider. OpenRouter's own models keep their prefix (`openrouter/free`), as does a model whose ID is already taken by another vendor's model. To use OpenRouter's model IDs instead, set the `OPENROUTER_USE_FULL_MODEL_IDS` environment variable or constant to `true`.
+Like the Vercel AI Gateway provider, model IDs are exposed without the vendor prefix, e.g. `claude-opus-4.7` for `anthropic/claude-opus-4.7`, so that model preferences match the model IDs of other providers. Anthropic models are also available with dashes, e.g. `claude-opus-4-7`, as in the Anthropic provider. OpenRouter's own models keep their prefix (`openrouter/free`). If models of different vendors share an ID without prefix, the oldest one gets it and the others keep their prefix. To use OpenRouter's model IDs instead, set the `OPENROUTER_USE_FULL_MODEL_IDS` environment variable or constant to `true`.
 
 A model preference that matches no model is skipped, so check the spelling of model IDs.
 

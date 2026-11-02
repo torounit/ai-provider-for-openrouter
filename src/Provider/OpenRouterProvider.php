@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ToroUnit\OpenRouterAiProvider\Provider;
 
+use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadata;
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
@@ -55,9 +56,9 @@ class OpenRouterProvider extends AbstractApiProvider
         ModelMetadata $modelMetadata,
         ProviderMetadata $providerMetadata
     ): ModelInterface {
-        $directory = static::modelMetadataDirectory();
-        $openRouterModelId = $directory instanceof OpenRouterModelMetadataDirectory
-            ? $directory->getOpenRouterModelId($modelMetadata->getId())
+        // OpenRouter's model ID can differ from the model ID exposed to the AI Client.
+        $openRouterModelId = $modelMetadata instanceof OpenRouterModelMetadata
+            ? $modelMetadata->getOpenRouterModelId()
             : null;
 
         $capabilities = $modelMetadata->getSupportedCapabilities();
@@ -176,15 +177,9 @@ class OpenRouterProvider extends AbstractApiProvider
     protected static function useFullModelIds(): bool
     {
         $value = getenv(self::USE_FULL_MODEL_IDS);
-        if ($value === false && defined(self::USE_FULL_MODEL_IDS)) {
+        if (($value === false || $value === '') && defined(self::USE_FULL_MODEL_IDS)) {
             $value = constant(self::USE_FULL_MODEL_IDS);
         }
-        if (is_bool($value)) {
-            return $value;
-        }
-        if (!is_string($value)) {
-            return false;
-        }
-        return in_array(strtolower(trim($value, " \t\n\r\0\x0B")), ['1', 'true', 'yes', 'on'], true);
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 }

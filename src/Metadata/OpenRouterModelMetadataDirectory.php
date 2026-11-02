@@ -6,7 +6,6 @@ namespace ToroUnit\OpenRouterAiProvider\Metadata;
 
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextToSpeechConversionModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
-use WordPress\AiClient\Common\Exception\InvalidArgumentException;
 use WordPress\AiClient\Files\Enums\FileTypeEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\Request;
@@ -32,7 +31,8 @@ use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCo
  *     name?: string,
  *     architecture?: array{input_modalities?: list<string>, output_modalities?: list<string>},
  *     supported_parameters?: list<string>,
- *     endpoints?: list<string>
+ *     endpoints?: list<string>,
+ *     created?: int
  * }
  * @phpstan-type ModelsResponseData array{
  *     data: list<ModelData>
@@ -82,24 +82,6 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     private const DEFAULT_MODEL_ID = 'openrouter/free';
 
     /**
-     * The cache key suffix for the map of exposed model IDs to OpenRouter's model IDs.
-     *
-     * @since 0.1.0
-     *
-     * @var string
-     */
-    private const MODEL_IDS_CACHE_KEY = 'model_ids';
-
-    /**
-     * Time in seconds to cache the model IDs, matching the models list.
-     *
-     * @since 0.1.0
-     *
-     * @var int
-     */
-    private const MODEL_IDS_CACHE_TTL = 86400;
-
-    /**
      * Whether to expose OpenRouter's model IDs, including the vendor prefix.
      *
      * @since 0.1.0
@@ -109,13 +91,22 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     private bool $useFullModelIds;
 
     /**
-     * Map of exposed model IDs to OpenRouter's model IDs.
+     * Map of model IDs exposed while listing models to OpenRouter's model IDs.
      *
      * @since 0.1.0
      *
      * @var array<string, string>
      */
-    private array $openRouterModelIds = [];
+    private array $exposedModelIds = [];
+
+    /**
+     * Map of model IDs without vendor prefix to the OpenRouter model ID that gets them.
+     *
+     * @since 0.1.0
+     *
+     * @var array<string, string>
+     */
+    private array $flatModelIdOwners = [];
 
     /**
      * Constructor.
@@ -138,7 +129,8 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      */
     protected function sendListModelsRequest(): array
     {
-        $this->openRouterModelIds = [];
+        $this->exposedModelIds = [];
+        $this->flatModelIdOwners = [];
 
         $modelMetadataMap = parent::sendListModelsRequest();
 
@@ -151,61 +143,79 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             $modelMetadataMap[$modelMetadata->getId()] = $modelMetadata;
         }
 
-        // The models list may later be read from the cache, so the model IDs are cached along with it.
-        $this->setCache(self::MODEL_IDS_CACHE_KEY, $this->openRouterModelIds, self::MODEL_IDS_CACHE_TTL);
-
         return $modelMetadataMap;
-    }
-
-    /**
-     * Returns OpenRouter's model ID for the given model ID exposed to the AI Client.
-     *
-     * @since 0.1.0
-     *
-     * @param string $modelId The exposed model ID, e.g. `claude-opus-4.7`.
-     * @return string OpenRouter's model ID, e.g. `anthropic/claude-opus-4.7`.
-     *
-     * @throws InvalidArgumentException If the model ID is unknown.
-     */
-    public function getOpenRouterModelId(string $modelId): string
-    {
-        if (!isset($this->openRouterModelIds[$modelId])) {
-            $cachedModelIds = $this->getCache(self::MODEL_IDS_CACHE_KEY);
-            if (is_array($cachedModelIds)) {
-                foreach ($cachedModelIds as $cachedModelId => $openRouterModelId) {
-                    if (is_string($cachedModelId) && is_string($openRouterModelId)) {
-                        $this->openRouterModelIds[$cachedModelId] = $openRouterModelId;
-                    }
-                }
-            }
-        }
-        if (!isset($this->openRouterModelIds[$modelId])) {
-            // Neither known from this request nor cached, e.g. after the cache was flushed partially.
-            $this->sendListModelsRequest();
-        }
-        if (!isset($this->openRouterModelIds[$modelId])) {
-            throw new InvalidArgumentException(
-                sprintf('No OpenRouter model ID found for model "%s".', $modelId)
-            );
-        }
-        return $this->openRouterModelIds[$modelId];
     }
 
     /**
      * {@inheritDoc}
      *
+     * The model ID format is part of the cache key, so that models cached in another format are not used.
+     *
      * @since 0.1.0
      */
-    protected function getCachedKeys(): array
+    protected function getBaseCacheKey(): string
     {
-        return array_merge(parent::getCachedKeys(), [self::MODEL_IDS_CACHE_KEY]);
+        return parent::getBaseCacheKey() . ($this->useFullModelIds ? '_full_ids' : '_flat_ids');
+    }
+
+    /**
+     * Assigns each model ID without vendor prefix to one of the given models.
+     *
+     * If models of different vendors share it, the oldest one gets it, so that a new model does not take the model
+     * ID from an existing one.
+     *
+     * @since 0.1.0
+     *
+     * @param array<mixed> $modelsData The models data from the API response.
+     */
+    private function assignFlatModelIds(array $modelsData): void
+    {
+        $created = [];
+        foreach ($modelsData as $modelData) {
+            if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
+                continue;
+            }
+            $flatModelId = $this->getFlatModelId($modelData['id']);
+            if ($flatModelId === null || isset($this->exposedModelIds[$flatModelId])) {
+                continue;
+            }
+            $modelCreated = isset($modelData['created']) && is_int($modelData['created'])
+                ? $modelData['created']
+                : PHP_INT_MAX;
+            if (!isset($this->flatModelIdOwners[$flatModelId]) || $modelCreated < $created[$flatModelId]) {
+                $this->flatModelIdOwners[$flatModelId] = $modelData['id'];
+                $created[$flatModelId] = $modelCreated;
+            }
+        }
+    }
+
+    /**
+     * Returns the model ID without vendor prefix for the given OpenRouter model ID.
+     *
+     * @since 0.1.0
+     *
+     * @param string $openRouterModelId OpenRouter's model ID.
+     * @return string|null The model ID without vendor prefix, or null if the full model ID is exposed.
+     */
+    private function getFlatModelId(string $openRouterModelId): ?string
+    {
+        $slashPosition = strpos($openRouterModelId, '/');
+        // OpenRouter's own models keep the prefix, since e.g. "free" and "auto" are meaningless alone.
+        if (
+            $this->useFullModelIds ||
+            $slashPosition === false ||
+            str_starts_with($openRouterModelId, 'openrouter/')
+        ) {
+            return null;
+        }
+        return substr($openRouterModelId, $slashPosition + 1);
     }
 
     /**
      * Returns the model ID to expose for the given OpenRouter model ID, and remembers the mapping.
      *
      * The vendor prefix is removed, so that the model IDs match those of other providers. OpenRouter's own models
-     * keep it, and so does a model whose ID without vendor is already taken by another model.
+     * keep it, and so do models whose ID without vendor is assigned to another model.
      *
      * @since 0.1.0
      *
@@ -215,19 +225,16 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     private function exposeModelId(string $openRouterModelId): string
     {
         $modelId = $openRouterModelId;
-        $slashPosition = strpos($openRouterModelId, '/');
+        $flatModelId = $this->getFlatModelId($openRouterModelId);
         if (
-            !$this->useFullModelIds &&
-            $slashPosition !== false &&
-            !str_starts_with($openRouterModelId, 'openrouter/')
+            $flatModelId !== null &&
+            ($this->flatModelIdOwners[$flatModelId] ?? $openRouterModelId) === $openRouterModelId &&
+            !isset($this->exposedModelIds[$flatModelId])
         ) {
-            $flatModelId = substr($openRouterModelId, $slashPosition + 1);
-            if (!isset($this->openRouterModelIds[$flatModelId])) {
-                $modelId = $flatModelId;
-            }
+            $modelId = $flatModelId;
         }
 
-        $this->openRouterModelIds[$modelId] = $openRouterModelId;
+        $this->exposedModelIds[$modelId] = $openRouterModelId;
         return $modelId;
     }
 
@@ -245,15 +252,16 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      */
     private function exposeModelIdAlias(string $openRouterModelId, string $modelId): ?string
     {
-        if ($this->useFullModelIds || !str_starts_with($openRouterModelId, 'anthropic/')) {
+        // A model that keeps its prefix does not match the Anthropic provider's model IDs anyway.
+        if (!str_starts_with($openRouterModelId, 'anthropic/') || str_contains($modelId, '/')) {
             return null;
         }
         $aliasModelId = str_replace('.', '-', $modelId);
-        if ($aliasModelId === $modelId || isset($this->openRouterModelIds[$aliasModelId])) {
+        if ($aliasModelId === $modelId || isset($this->exposedModelIds[$aliasModelId])) {
             return null;
         }
 
-        $this->openRouterModelIds[$aliasModelId] = $openRouterModelId;
+        $this->exposedModelIds[$aliasModelId] = $openRouterModelId;
         return $aliasModelId;
     }
 
@@ -285,6 +293,8 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             throw ResponseException::fromMissingData('OpenRouter', 'data');
         }
 
+        $this->assignFlatModelIds((array) $responseData['data']);
+
         $models = [];
         foreach ((array) $responseData['data'] as $modelData) {
             if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
@@ -301,11 +311,12 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
 
             $aliasModelId = $this->exposeModelIdAlias($modelData['id'], $modelMetadata->getId());
             if ($aliasModelId !== null) {
-                $models[] = new ModelMetadata(
+                $models[] = new OpenRouterModelMetadata(
                     $aliasModelId,
                     $modelMetadata->getName(),
                     $modelMetadata->getSupportedCapabilities(),
-                    $modelMetadata->getSupportedOptions()
+                    $modelMetadata->getSupportedOptions(),
+                    $modelData['id']
                 );
             }
         }
@@ -329,6 +340,8 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             throw ResponseException::fromMissingData('OpenRouter', 'data');
         }
 
+        $this->assignFlatModelIds($responseData['data']);
+
         $models = [];
         foreach ($responseData['data'] as $modelData) {
             if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
@@ -351,11 +364,12 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             }
             $options[] = new SupportedOption(OptionEnum::customOptions());
 
-            $models[] = new ModelMetadata(
+            $models[] = new OpenRouterModelMetadata(
                 $this->exposeModelId($modelData['id']),
                 $modelData['name'] ?? $modelData['id'],
                 [CapabilityEnum::embeddingGeneration()],
-                $options
+                $options,
+                $modelData['id']
             );
         }
 
@@ -463,11 +477,12 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         }
         $options[] = new SupportedOption(OptionEnum::outputModalities(), $outputModalityOptions);
 
-        return new ModelMetadata(
+        return new OpenRouterModelMetadata(
             $this->exposeModelId($modelData['id']),
             $modelData['name'] ?? $modelData['id'],
             $capabilities,
-            $options
+            $options,
+            $modelData['id']
         );
     }
 
@@ -481,7 +496,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      */
     private function createImageModelMetadata(array $modelData): ModelMetadata
     {
-        return new ModelMetadata(
+        return new OpenRouterModelMetadata(
             $this->exposeModelId($modelData['id']),
             $modelData['name'] ?? $modelData['id'],
             [CapabilityEnum::imageGeneration()],
@@ -494,7 +509,8 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
                     new SupportedOption(OptionEnum::customOptions()),
                 ],
                 $this->getImageOptions()
-            )
+            ),
+            $modelData['id']
         );
     }
 

@@ -18,7 +18,6 @@ use WordPress\AiClient\Common\Exception\RuntimeException;
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
-use WordPress\AiClient\Providers\Contracts\ModelMetadataDirectoryInterface;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
 use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Models\Contracts\ModelInterface;
@@ -221,6 +220,7 @@ class OpenRouterProviderTest extends TestCase
             'one' => ['1', true],
             'false' => ['false', false],
             'empty' => ['', false],
+            'invalid' => ['maybe', false],
         ];
     }
 
@@ -230,17 +230,6 @@ class OpenRouterProviderTest extends TestCase
             public static function exposeCreateModel(ModelMetadata $modelMetadata): ModelInterface
             {
                 return static::createModel($modelMetadata, static::metadata());
-            }
-
-            protected static function createModelMetadataDirectory(): ModelMetadataDirectoryInterface
-            {
-                // The models are created from hand-built metadata, so their IDs are not mapped.
-                return new class extends OpenRouterModelMetadataDirectory {
-                    public function getOpenRouterModelId(string $modelId): string
-                    {
-                        return $modelId;
-                    }
-                };
             }
         };
 

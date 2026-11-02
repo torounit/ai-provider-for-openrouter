@@ -24,7 +24,7 @@ trait WithOpenRouterModelIdTrait
      *
      * @var string|null
      */
-    private ?string $openRouterModelId;
+    private ?string $openRouterModelId = null;
 
     /**
      * Constructor.

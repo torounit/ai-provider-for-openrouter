@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace ToroUnit\OpenRouterAiProvider\Tests\unit\Metadata;
 
 use PHPUnit\Framework\TestCase;
+use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadata;
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\ArrayCache;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
 use WordPress\AiClient\AiClient;
-use WordPress\AiClient\Common\Exception\InvalidArgumentException;
 use WordPress\AiClient\Files\Enums\FileTypeEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
@@ -374,15 +374,17 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
     /**
      * @dataProvider dataOpenRouterModelIds
      */
-    public function testGetOpenRouterModelIdReturnsFullModelId(string $modelId, string $expectedModelId): void
+    public function testModelMetadataKeepsOpenRouterModelId(string $modelId, string $expectedModelId): void
     {
         $directory = new OpenRouterModelMetadataDirectory();
         $directory->setHttpTransporter($this->createFixtureTransporter());
         $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
         $directory->invalidateCaches();
-        $directory->listModelMetadata();
 
-        $this->assertSame($expectedModelId, $directory->getOpenRouterModelId($modelId));
+        $metadata = $directory->getModelMetadata($modelId);
+
+        $this->assertInstanceOf(OpenRouterModelMetadata::class, $metadata);
+        $this->assertSame($expectedModelId, $metadata->getOpenRouterModelId());
     }
 
     /**
@@ -398,19 +400,7 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         ];
     }
 
-    public function testGetOpenRouterModelIdThrowsForUnknownModel(): void
-    {
-        $directory = new OpenRouterModelMetadataDirectory();
-        $directory->setHttpTransporter($this->createFixtureTransporter());
-        $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
-        $directory->invalidateCaches();
-
-        $this->expectException(InvalidArgumentException::class);
-
-        $directory->getOpenRouterModelId('unknown-model');
-    }
-
-    public function testGetOpenRouterModelIdWorksWhenModelsComeFromCache(): void
+    public function testOpenRouterModelIdIsKeptWhenModelsComeFromCache(): void
     {
         AiClient::setCache(new ArrayCache());
         try {
@@ -426,38 +416,48 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
             $second->setHttpTransporter($transporter);
             $second->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
 
-            $this->assertTrue($second->hasModelMetadata('claude-haiku-5.5'));
-            $this->assertSame('anthropic/claude-haiku-5.5', $second->getOpenRouterModelId('claude-haiku-5.5'));
+            $metadata = $second->getModelMetadata('claude-haiku-5.5');
+            $this->assertInstanceOf(OpenRouterModelMetadata::class, $metadata);
+            $this->assertSame('anthropic/claude-haiku-5.5', $metadata->getOpenRouterModelId());
             $this->assertSame([], $transporter->getRequests());
+
+            // Models cached in the other model ID format are not used.
+            $fullIds = new OpenRouterModelMetadataDirectory(true);
+            $fullIds->setHttpTransporter($this->createFixtureTransporter());
+            $fullIds->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $this->assertTrue($fullIds->hasModelMetadata('anthropic/claude-haiku-5.5'));
+            $this->assertFalse($fullIds->hasModelMetadata('claude-haiku-5.5'));
         } finally {
             AiClient::setCache(null);
         }
     }
 
-    public function testKeepsFullModelIdWhenFlatModelIdIsTaken(): void
+    public function testOldestModelKeepsFlatModelIdWhenItIsTaken(): void
     {
-        $directory = new class extends OpenRouterModelMetadataDirectory {
-            public function exposeParseResponseToModelMetadataList(Response $response): array
-            {
-                return $this->parseResponseToModelMetadataList($response);
-            }
-        };
-
-        $models = $directory->exposeParseResponseToModelMetadataList(new Response(200, [], (string) json_encode([
-            'data' => [['id' => 'vendor-a/model'], ['id' => 'vendor-b/model']],
-        ])));
-
-        $this->assertSame(
-            ['model', 'vendor-b/model'],
-            array_map(
-                static function (ModelMetadata $metadata): string {
-                    return $metadata->getId();
-                },
-                $models
-            )
+        $models = $this->parseResponse(
+            [
+                ['id' => 'vendor-new/model', 'created' => 200],
+                ['id' => 'vendor-old/model', 'created' => 100],
+            ],
+            false
         );
-        $this->assertSame('vendor-a/model', $directory->getOpenRouterModelId('model'));
-        $this->assertSame('vendor-b/model', $directory->getOpenRouterModelId('vendor-b/model'));
+
+        $this->assertSame(['vendor-new/model', 'model'], array_keys($models));
+        $this->assertInstanceOf(OpenRouterModelMetadata::class, $models['model']);
+        $this->assertSame('vendor-old/model', $models['model']->getOpenRouterModelId());
+    }
+
+    public function testDoesNotAddAliasForPrefixedAnthropicModel(): void
+    {
+        $models = $this->parseResponse(
+            [
+                ['id' => 'other/claude-opus-4.7', 'created' => 100],
+                ['id' => 'anthropic/claude-opus-4.7', 'created' => 200],
+            ],
+            false
+        );
+
+        $this->assertSame(['claude-opus-4.7', 'anthropic/claude-opus-4.7'], array_keys($models));
     }
 
     private function createFixtureTransporter(): MockHttpTransporter
@@ -493,12 +493,13 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
 
     /**
      * @param list<array<string, mixed>> $data
+     * @param bool $useFullModelIds Whether to expose OpenRouter's model IDs.
      * @return array<string, ModelMetadata> Map of model ID to metadata, in list order.
      */
-    private function parseResponse(array $data): array
+    private function parseResponse(array $data, bool $useFullModelIds = true): array
     {
         // Most tests check OpenRouter's model IDs, so the full model IDs are used.
-        $directory = new class (true) extends OpenRouterModelMetadataDirectory {
+        $directory = new class ($useFullModelIds) extends OpenRouterModelMetadataDirectory {
             public function exposeParseResponseToModelMetadataList(Response $response): array
             {
                 return $this->parseResponseToModelMetadataList($response);
