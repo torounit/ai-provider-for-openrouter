@@ -38,6 +38,15 @@ class OpenRouterProvider extends AbstractApiProvider
     public const USE_FULL_MODEL_IDS = 'OPENROUTER_USE_FULL_MODEL_IDS';
 
     /**
+     * Name of the environment variable or constant to list only free models, so that no costs are incurred.
+     *
+     * @since 0.1.0
+     *
+     * @var string
+     */
+    public const FREE_MODELS_ONLY = 'OPENROUTER_FREE_MODELS_ONLY';
+
+    /**
      * {@inheritDoc}
      *
      * @since 0.1.0
@@ -161,7 +170,7 @@ class OpenRouterProvider extends AbstractApiProvider
      */
     protected static function createModelMetadataDirectory(): ModelMetadataDirectoryInterface
     {
-        return new OpenRouterModelMetadataDirectory(static::useFullModelIds());
+        return new OpenRouterModelMetadataDirectory(static::useFullModelIds(), static::freeModelsOnly());
     }
 
     /**
@@ -180,9 +189,37 @@ class OpenRouterProvider extends AbstractApiProvider
      */
     protected static function useFullModelIds(): bool
     {
-        $value = getenv(self::USE_FULL_MODEL_IDS);
-        if (($value === false || $value === '') && defined(self::USE_FULL_MODEL_IDS)) {
-            $value = constant(self::USE_FULL_MODEL_IDS);
+        return self::getBooleanSetting(self::USE_FULL_MODEL_IDS);
+    }
+
+    /**
+     * Returns whether to list only free models, so that no costs are incurred.
+     *
+     * Paid models, and features that only paid models support such as image generation, then cannot be used. Web
+     * search is not available either, since it is charged even with free models.
+     *
+     * @since 0.1.0
+     *
+     * @return bool True to list only free models.
+     */
+    protected static function freeModelsOnly(): bool
+    {
+        return self::getBooleanSetting(self::FREE_MODELS_ONLY);
+    }
+
+    /**
+     * Returns the boolean value of the given environment variable or constant.
+     *
+     * @since 0.1.0
+     *
+     * @param string $name The name of the environment variable or constant.
+     * @return bool The value, or false if it is not set.
+     */
+    private static function getBooleanSetting(string $name): bool
+    {
+        $value = getenv($name);
+        if (($value === false || $value === '') && defined($name)) {
+            $value = constant($name);
         }
         return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }

@@ -91,6 +91,15 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     private bool $useFullModelIds;
 
     /**
+     * Whether to list only free models, so that no costs are incurred.
+     *
+     * @since 0.1.0
+     *
+     * @var bool
+     */
+    private bool $freeModelsOnly;
+
+    /**
      * Map of model IDs exposed while listing models to OpenRouter's model IDs.
      *
      * @since 0.1.0
@@ -114,10 +123,12 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      * @since 0.1.0
      *
      * @param bool $useFullModelIds Whether to expose OpenRouter's model IDs, including the vendor prefix.
+     * @param bool $freeModelsOnly  Whether to list only free models.
      */
-    public function __construct(bool $useFullModelIds = false)
+    public function __construct(bool $useFullModelIds = false, bool $freeModelsOnly = false)
     {
         $this->useFullModelIds = $useFullModelIds;
+        $this->freeModelsOnly = $freeModelsOnly;
     }
 
     /**
@@ -149,13 +160,48 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     /**
      * {@inheritDoc}
      *
-     * The model ID format is part of the cache key, so that models cached in another format are not used.
+     * The model ID format and the free models setting are part of the cache key, so that models cached with other
+     * settings are not used.
      *
      * @since 0.1.0
      */
     protected function getBaseCacheKey(): string
     {
-        return parent::getBaseCacheKey() . ($this->useFullModelIds ? '_full_ids' : '_flat_ids');
+        return parent::getBaseCacheKey()
+            . ($this->useFullModelIds ? '_full_ids' : '_flat_ids')
+            . ($this->freeModelsOnly ? '_free_only' : '');
+    }
+
+    /**
+     * Returns the data of the models to list from the API response.
+     *
+     * @since 0.1.0
+     *
+     * @param array<mixed> $modelsData The models data from the API response.
+     * @return list<ModelData> The data of the models to list.
+     */
+    private function filterModelsData(array $modelsData): array
+    {
+        $filteredModelsData = [];
+        foreach ($modelsData as $modelData) {
+            if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
+                continue;
+            }
+            /*
+             * Only `:free` variants and the free models router are free. Prices are not checked, since some models
+             * that are charged per request list a price of zero, e.g. Lyria.
+             */
+            if (
+                $this->freeModelsOnly &&
+                !str_ends_with($modelData['id'], ':free') &&
+                $modelData['id'] !== self::DEFAULT_MODEL_ID
+            ) {
+                continue;
+            }
+            /** @var ModelData $modelData */
+            $filteredModelsData[] = $modelData;
+        }
+        return $filteredModelsData;
     }
 
     /**
@@ -301,13 +347,11 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             throw ResponseException::fromMissingData('OpenRouter', 'data');
         }
 
-        $this->assignFlatModelIds((array) $responseData['data']);
+        $modelsData = $this->filterModelsData((array) $responseData['data']);
+        $this->assignFlatModelIds($modelsData);
 
         $models = [];
-        foreach ((array) $responseData['data'] as $modelData) {
-            if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
-                continue;
-            }
+        foreach ($modelsData as $modelData) {
             if ($this->supportsChatCompletions($modelData)) {
                 $modelMetadata = $this->createTextModelMetadata($modelData);
             } elseif (in_array(self::IMAGES_ENDPOINT, $modelData['endpoints'] ?? [], true)) {
@@ -348,14 +392,11 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             throw ResponseException::fromMissingData('OpenRouter', 'data');
         }
 
-        $this->assignFlatModelIds($responseData['data']);
+        $modelsData = $this->filterModelsData($responseData['data']);
+        $this->assignFlatModelIds($modelsData);
 
         $models = [];
-        foreach ($responseData['data'] as $modelData) {
-            if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
-                continue;
-            }
-
+        foreach ($modelsData as $modelData) {
             // Like the AI Provider for OpenAI, only text inputs are supported.
             $options = [
                 new SupportedOption(OptionEnum::inputModalities(), [[ModalityEnum::text()]]),
@@ -456,8 +497,10 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         if ($outputMimeTypes) {
             $options[] = new SupportedOption(OptionEnum::outputMimeType(), $outputMimeTypes);
         }
-        // The web search plugin works with any model.
-        $options[] = new SupportedOption(OptionEnum::webSearch());
+        // The web search plugin works with any model, but is charged even with free models.
+        if (!$this->freeModelsOnly) {
+            $options[] = new SupportedOption(OptionEnum::webSearch());
+        }
         $options[] = new SupportedOption(OptionEnum::customOptions());
         $options[] = new SupportedOption(
             OptionEnum::inputModalities(),

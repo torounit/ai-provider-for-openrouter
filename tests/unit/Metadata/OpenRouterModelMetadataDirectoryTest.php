@@ -460,6 +460,51 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertSame(['claude-opus-4.7', 'anthropic/claude-opus-4.7'], array_keys($models));
     }
 
+    public function testListsOnlyFreeModelsWhenEnabled(): void
+    {
+        $directory = new OpenRouterModelMetadataDirectory(true, true);
+        $directory->setHttpTransporter($this->createFixtureTransporter());
+        $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+        $directory->invalidateCaches();
+
+        $models = $directory->listModelMetadata();
+
+        // Lyria lists a price of zero, but is charged per song, so only `:free` models and the free router are free.
+        $this->assertSame(
+            ['openrouter/free', 'nvidia/nemotron-3.5-super-vl:free', 'nvidia/nemotron-3.5-embed-1b:free'],
+            array_map(
+                static function (ModelMetadata $metadata): string {
+                    return $metadata->getId();
+                },
+                $models
+            )
+        );
+        // Web search is charged even with free models.
+        foreach ($models as $model) {
+            $this->assertNotContains((string) OptionEnum::webSearch(), $this->getOptionNames($model));
+        }
+    }
+
+    public function testDoesNotUseModelsCachedWithoutFreeModelsOnly(): void
+    {
+        AiClient::setCache(new ArrayCache());
+        try {
+            $all = new OpenRouterModelMetadataDirectory(true);
+            $all->setHttpTransporter($this->createFixtureTransporter());
+            $all->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $all->invalidateCaches();
+            $this->assertTrue($all->hasModelMetadata('anthropic/claude-haiku-5.5'));
+
+            $free = new OpenRouterModelMetadataDirectory(true, true);
+            $free->setHttpTransporter($this->createFixtureTransporter());
+            $free->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $this->assertFalse($free->hasModelMetadata('anthropic/claude-haiku-5.5'));
+            $this->assertTrue($free->hasModelMetadata('openrouter/free'));
+        } finally {
+            AiClient::setCache(null);
+        }
+    }
+
     private function createFixtureTransporter(): MockHttpTransporter
     {
         $fixtures = dirname(__DIR__, 2) . '/fixtures';
