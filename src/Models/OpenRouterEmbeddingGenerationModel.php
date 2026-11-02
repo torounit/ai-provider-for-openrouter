@@ -34,6 +34,8 @@ use WordPress\AiClient\Results\DTO\TokenUsage;
  */
 class OpenRouterEmbeddingGenerationModel extends AbstractApiBasedModel implements EmbeddingGenerationModelInterface
 {
+    use WithOpenRouterModelIdTrait;
+
     /**
      * {@inheritDoc}
      *
@@ -102,7 +104,7 @@ class OpenRouterEmbeddingGenerationModel extends AbstractApiBasedModel implement
         }
 
         $params = [
-            'model' => $this->metadata()->getId(),
+            'model' => $this->getOpenRouterModelId(),
             'input' => $texts,
         ];
 

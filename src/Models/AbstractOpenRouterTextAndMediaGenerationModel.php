@@ -60,13 +60,17 @@ abstract class AbstractOpenRouterTextAndMediaGenerationModel implements
      *
      * @since 0.1.0
      *
-     * @param ModelMetadata    $metadata         The model metadata.
-     * @param ProviderMetadata $providerMetadata The provider metadata.
+     * @param ModelMetadata    $metadata          The model metadata.
+     * @param ProviderMetadata $providerMetadata  The provider metadata.
+     * @param string|null      $openRouterModelId OpenRouter's model ID, if it differs from the model metadata ID.
      */
-    public function __construct(ModelMetadata $metadata, ProviderMetadata $providerMetadata)
-    {
-        $this->textModel = new OpenRouterTextGenerationModel($metadata, $providerMetadata);
-        $this->mediaModel = $this->createMediaModel($metadata, $providerMetadata);
+    public function __construct(
+        ModelMetadata $metadata,
+        ProviderMetadata $providerMetadata,
+        ?string $openRouterModelId = null
+    ) {
+        $this->textModel = new OpenRouterTextGenerationModel($metadata, $providerMetadata, $openRouterModelId);
+        $this->mediaModel = $this->createMediaModel($metadata, $providerMetadata, $openRouterModelId);
     }
 
     /**
@@ -74,13 +78,15 @@ abstract class AbstractOpenRouterTextAndMediaGenerationModel implements
      *
      * @since 0.1.0
      *
-     * @param ModelMetadata    $metadata         The model metadata.
-     * @param ProviderMetadata $providerMetadata The provider metadata.
+     * @param ModelMetadata    $metadata          The model metadata.
+     * @param ProviderMetadata $providerMetadata  The provider metadata.
+     * @param string|null      $openRouterModelId OpenRouter's model ID, if it differs from the model metadata ID.
      * @return TMediaModel The model.
      */
     abstract protected function createMediaModel(
         ModelMetadata $metadata,
-        ProviderMetadata $providerMetadata
+        ProviderMetadata $providerMetadata,
+        ?string $openRouterModelId
     ): AbstractApiBasedModel;
 
     /**

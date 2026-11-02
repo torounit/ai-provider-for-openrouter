@@ -28,6 +28,8 @@ use WordPress\AiClient\Results\DTO\TokenUsage;
  */
 class OpenRouterImageGenerationModel extends AbstractOpenAiCompatibleImageGenerationModel
 {
+    use WithOpenRouterModelIdTrait;
+
     /**
      * {@inheritDoc}
      *
@@ -64,6 +66,7 @@ class OpenRouterImageGenerationModel extends AbstractOpenAiCompatibleImageGenera
     protected function prepareGenerateImageParams(array $prompt): array
     {
         $params = parent::prepareGenerateImageParams($prompt);
+        $params['model'] = $this->getOpenRouterModelId();
 
         // The API always returns base64 data.
         unset($params['response_format']);

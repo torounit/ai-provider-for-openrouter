@@ -15,6 +15,10 @@ use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProviderAvailability;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
 use WordPress\AiClient\Common\Exception\RuntimeException;
+use WordPress\AiClient\Messages\DTO\Message;
+use WordPress\AiClient\Messages\DTO\MessagePart;
+use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
+use WordPress\AiClient\Providers\Contracts\ModelMetadataDirectoryInterface;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
 use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Models\Contracts\ModelInterface;
@@ -158,12 +162,85 @@ class OpenRouterProviderTest extends TestCase
         $this->assertSame('https://openrouter.ai/api/v1/key', $request->getUri());
     }
 
+    public function testRegistryResolvesFlatModelIdForRequests(): void
+    {
+        $fixtures = dirname(__DIR__, 2) . '/fixtures';
+        $transporter = new MockHttpTransporter([
+            new Response(200, [], (string) file_get_contents($fixtures . '/models.json')),
+            new Response(200, [], (string) file_get_contents($fixtures . '/embedding-models.json')),
+            new Response(200, [], (string) json_encode([
+                'choices' => [
+                    ['index' => 0, 'finish_reason' => 'stop', 'message' => ['role' => 'assistant', 'content' => 'Hi']],
+                ],
+            ])),
+        ]);
+        $registry = new ProviderRegistry();
+        $registry->setHttpTransporter($transporter);
+        $registry->registerProvider(OpenRouterProvider::class);
+        $registry->setProviderRequestAuthentication('openrouter', new ApiKeyRequestAuthentication('sk-or-test'));
+        OpenRouterProvider::modelMetadataDirectory()->invalidateCaches();
+
+        $model = $registry->getProviderModel('openrouter', 'claude-haiku-5.5');
+        $this->assertInstanceOf(OpenRouterTextGenerationModel::class, $model);
+        $model->generateTextResult([new Message(MessageRoleEnum::user(), [new MessagePart('Hello')])]);
+
+        $request = $transporter->getLastRequest();
+        $this->assertNotNull($request);
+        $data = $request->getData();
+        $this->assertNotNull($data);
+        $this->assertSame('anthropic/claude-haiku-5.5', $data['model']);
+    }
+
+    /**
+     * @dataProvider dataFullModelIdsSettings
+     */
+    public function testUsesFullModelIdsWhenEnabled(string $value, bool $expected): void
+    {
+        putenv('OPENROUTER_USE_FULL_MODEL_IDS=' . $value);
+        try {
+            $provider = new class extends OpenRouterProvider {
+                public static function exposeUseFullModelIds(): bool
+                {
+                    return static::useFullModelIds();
+                }
+            };
+
+            $this->assertSame($expected, $provider::exposeUseFullModelIds());
+        } finally {
+            putenv('OPENROUTER_USE_FULL_MODEL_IDS');
+        }
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    public function dataFullModelIdsSettings(): array
+    {
+        return [
+            'true' => ['true', true],
+            'one' => ['1', true],
+            'false' => ['false', false],
+            'empty' => ['', false],
+        ];
+    }
+
     private function createModel(ModelMetadata $modelMetadata): ModelInterface
     {
         $provider = new class extends OpenRouterProvider {
             public static function exposeCreateModel(ModelMetadata $modelMetadata): ModelInterface
             {
                 return static::createModel($modelMetadata, static::metadata());
+            }
+
+            protected static function createModelMetadataDirectory(): ModelMetadataDirectoryInterface
+            {
+                // The models are created from hand-built metadata, so their IDs are not mapped.
+                return new class extends OpenRouterModelMetadataDirectory {
+                    public function getOpenRouterModelId(string $modelId): string
+                    {
+                        return $modelId;
+                    }
+                };
             }
         };
 

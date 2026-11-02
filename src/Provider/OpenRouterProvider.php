@@ -28,6 +28,15 @@ use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 class OpenRouterProvider extends AbstractApiProvider
 {
     /**
+     * Name of the environment variable or constant to expose OpenRouter's model IDs, including the vendor prefix.
+     *
+     * @since 0.1.0
+     *
+     * @var string
+     */
+    public const USE_FULL_MODEL_IDS = 'OPENROUTER_USE_FULL_MODEL_IDS';
+
+    /**
      * {@inheritDoc}
      *
      * @since 0.1.0
@@ -46,6 +55,11 @@ class OpenRouterProvider extends AbstractApiProvider
         ModelMetadata $modelMetadata,
         ProviderMetadata $providerMetadata
     ): ModelInterface {
+        $directory = static::modelMetadataDirectory();
+        $openRouterModelId = $directory instanceof OpenRouterModelMetadataDirectory
+            ? $directory->getOpenRouterModelId($modelMetadata->getId())
+            : null;
+
         $capabilities = $modelMetadata->getSupportedCapabilities();
 
         $supportsTextGeneration = false;
@@ -62,21 +76,21 @@ class OpenRouterProvider extends AbstractApiProvider
                 $supportsSpeech = true;
             }
             if ($capability->isEmbeddingGeneration()) {
-                return new OpenRouterEmbeddingGenerationModel($modelMetadata, $providerMetadata);
+                return new OpenRouterEmbeddingGenerationModel($modelMetadata, $providerMetadata, $openRouterModelId);
             }
         }
 
         if ($supportsTextGeneration && $supportsImageGeneration) {
-            return new OpenRouterTextAndImageGenerationModel($modelMetadata, $providerMetadata);
+            return new OpenRouterTextAndImageGenerationModel($modelMetadata, $providerMetadata, $openRouterModelId);
         }
         if ($supportsTextGeneration && $supportsSpeech) {
-            return new OpenRouterTextAndSpeechGenerationModel($modelMetadata, $providerMetadata);
+            return new OpenRouterTextAndSpeechGenerationModel($modelMetadata, $providerMetadata, $openRouterModelId);
         }
         if ($supportsTextGeneration) {
-            return new OpenRouterTextGenerationModel($modelMetadata, $providerMetadata);
+            return new OpenRouterTextGenerationModel($modelMetadata, $providerMetadata, $openRouterModelId);
         }
         if ($supportsImageGeneration) {
-            return new OpenRouterImageGenerationModel($modelMetadata, $providerMetadata);
+            return new OpenRouterImageGenerationModel($modelMetadata, $providerMetadata, $openRouterModelId);
         }
 
         throw new RuntimeException(
@@ -146,6 +160,31 @@ class OpenRouterProvider extends AbstractApiProvider
      */
     protected static function createModelMetadataDirectory(): ModelMetadataDirectoryInterface
     {
-        return new OpenRouterModelMetadataDirectory();
+        return new OpenRouterModelMetadataDirectory(static::useFullModelIds());
+    }
+
+    /**
+     * Returns whether to expose OpenRouter's model IDs, including the vendor prefix.
+     *
+     * By default, model IDs are exposed without it (e.g. `claude-opus-4.7`), so that they match the model IDs of
+     * other providers. Set the environment variable or constant to `true` to expose `anthropic/claude-opus-4.7`.
+     *
+     * @since 0.1.0
+     *
+     * @return bool True to expose OpenRouter's model IDs.
+     */
+    protected static function useFullModelIds(): bool
+    {
+        $value = getenv(self::USE_FULL_MODEL_IDS);
+        if ($value === false && defined(self::USE_FULL_MODEL_IDS)) {
+            $value = constant(self::USE_FULL_MODEL_IDS);
+        }
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (!is_string($value)) {
+            return false;
+        }
+        return in_array(strtolower(trim($value, " \t\n\r\0\x0B")), ['1', 'true', 'yes', 'on'], true);
     }
 }

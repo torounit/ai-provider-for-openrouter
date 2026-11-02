@@ -333,6 +333,26 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->prepareParams($config);
     }
 
+    public function testGenerateTextResultSendsOpenRouterModelId(): void
+    {
+        $transporter = new MockHttpTransporter([$this->createChatResponse(['role' => 'assistant', 'content' => 'Hi'])]);
+        $model = new OpenRouterTextGenerationModel(
+            new ModelMetadata('claude-haiku-5.5', 'Claude Haiku 5.5', [CapabilityEnum::textGeneration()], []),
+            OpenRouterProvider::metadata(),
+            'anthropic/claude-haiku-5.5'
+        );
+        $model->setHttpTransporter($transporter);
+        $model->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+
+        $model->generateTextResult([$this->createUserMessage('Hello')]);
+
+        $request = $transporter->getLastRequest();
+        $this->assertNotNull($request);
+        $data = $request->getData();
+        $this->assertNotNull($data);
+        $this->assertSame('anthropic/claude-haiku-5.5', $data['model']);
+    }
+
     public function testPrepareGenerateTextParamsIncludesTopK(): void
     {
         $config = new ModelConfig();

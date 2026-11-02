@@ -29,9 +29,10 @@ class OpenRouterTextAndSpeechGenerationModel extends AbstractOpenRouterTextAndMe
      */
     protected function createMediaModel(
         ModelMetadata $metadata,
-        ProviderMetadata $providerMetadata
+        ProviderMetadata $providerMetadata,
+        ?string $openRouterModelId
     ): AbstractApiBasedModel {
-        return new OpenRouterTextToSpeechConversionModel($metadata, $providerMetadata);
+        return new OpenRouterTextToSpeechConversionModel($metadata, $providerMetadata, $openRouterModelId);
     }
 
     /**

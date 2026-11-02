@@ -47,25 +47,25 @@ This plugin is distributed through GitHub only. A different plugin with the same
 The provider automatically registers itself with the AI Client on the `init` hook.
 
 ```php
-$text = wp_ai_client_prompt('Hello, world!')
-    ->using_model_preference(['openrouter', 'anthropic/claude-sonnet-5.5'])
-    ->generate_text();
+$result = wp_ai_client_prompt('Hello, world!')
+    ->using_model_preference('claude-opus-4.7', 'gemini-3.1-pro-preview', 'gpt-5.4')
+    ->generate_text_result();
 ```
 
-Images are generated with models that support OpenRouter's images API, such as `google/gemini-3.1-flash-lite-image`. Use an aspect ratio or orientation instead of a size:
+Images are generated with models that support OpenRouter's images API, such as `gemini-3.1-flash-lite-image`. Use an aspect ratio or orientation instead of a size:
 
 ```php
 $image = wp_ai_client_prompt('A red apple on a white background.')
-    ->using_model_preference(['openrouter', 'google/gemini-3.1-flash-lite-image'])
+    ->using_model_preference(['openrouter', 'gemini-3.1-flash-lite-image'])
     ->as_output_media_aspect_ratio('16:9')
     ->generate_image();
 ```
 
-Text to speech uses models that take and output audio, such as `openai/gpt-audio-mini`. OpenRouter only streams raw PCM audio, so the speech is returned as a WAV file:
+Text to speech uses models that take and output audio, such as `gpt-audio-mini`. OpenRouter only streams raw PCM audio, so the speech is returned as a WAV file:
 
 ```php
 $speech = wp_ai_client_prompt('Hello from WordPress.')
-    ->using_model_preference(['openrouter', 'openai/gpt-audio-mini'])
+    ->using_model_preference(['openrouter', 'gpt-audio-mini'])
     ->as_output_speech_voice('nova')
     ->convert_text_to_speech();
 ```
@@ -74,7 +74,7 @@ Embeddings are generated through the WordPress embedding API. Only text inputs a
 
 ```php
 $embeddings = wp_ai_client_embedding(['Hello', 'World'])
-    ->using_provider_model('openrouter', 'nvidia/nemotron-3.5-embed-1b:free')
+    ->using_provider_model('openrouter', 'nemotron-3.5-embed-1b:free')
     ->generate_embeddings();
 ```
 
@@ -101,7 +101,11 @@ echo $result->toText();
 
 ## Supported Models
 
-Available models and their supported options are dynamically discovered from the OpenRouter API. Model IDs are OpenRouter's own IDs, e.g. `anthropic/claude-sonnet-5.5` or `nvidia/nemotron-3.5-super-vl:free`. See the [OpenRouter models list](https://openrouter.ai/models) for all models.
+Available models and their supported options are dynamically discovered from the OpenRouter API. See the [OpenRouter models list](https://openrouter.ai/models) for all models.
+
+Like the Vercel AI Gateway provider, model IDs are exposed without the vendor prefix, e.g. `claude-opus-4.7` for `anthropic/claude-opus-4.7`, so that model preferences match the model IDs of other providers. Anthropic models are also available with dashes, e.g. `claude-opus-4-7`, as in the Anthropic provider. OpenRouter's own models keep their prefix (`openrouter/free`), as does a model whose ID is already taken by another vendor's model. To use OpenRouter's model IDs instead, set the `OPENROUTER_USE_FULL_MODEL_IDS` environment variable or constant to `true`.
+
+A model preference that matches no model is skipped, so check the spelling of model IDs.
 
 - `openrouter/free` is listed first, so it is used when no model is specified. It routes to free models only, so prompts without a model preference cost nothing.
 - `openrouter/auto` picks a suitable model for each prompt from all models, including paid ones.
