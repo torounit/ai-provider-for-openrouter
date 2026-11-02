@@ -71,4 +71,30 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
 
         return $params;
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * The OpenAI compatible implementation passes the schema as `json_schema` directly, while the API expects it to
+     * be wrapped in an object with a name.
+     *
+     * @since 0.1.0
+     *
+     * @link https://openrouter.ai/docs/guides/features/structured-outputs
+     */
+    protected function prepareResponseFormatParam(?array $outputSchema): array
+    {
+        if (!is_array($outputSchema)) {
+            return parent::prepareResponseFormatParam($outputSchema);
+        }
+
+        return [
+            'type' => 'json_schema',
+            'json_schema' => [
+                'name' => 'response_schema',
+                'schema' => $outputSchema,
+                'strict' => true,
+            ],
+        ];
+    }
 }

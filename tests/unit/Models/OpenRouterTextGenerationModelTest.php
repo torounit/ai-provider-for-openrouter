@@ -94,6 +94,43 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->prepareParams($config);
     }
 
+    public function testPrepareGenerateTextParamsWrapsOutputSchema(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => ['capital' => ['type' => 'string']],
+            'required' => ['capital'],
+            'additionalProperties' => false,
+        ];
+        $config = new ModelConfig();
+        $config->setOutputMimeType('application/json');
+        $config->setOutputSchema($schema);
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame(
+            [
+                'type' => 'json_schema',
+                'json_schema' => [
+                    'name' => 'response_schema',
+                    'schema' => $schema,
+                    'strict' => true,
+                ],
+            ],
+            $params['response_format']
+        );
+    }
+
+    public function testPrepareGenerateTextParamsUsesJsonObjectWithoutOutputSchema(): void
+    {
+        $config = new ModelConfig();
+        $config->setOutputMimeType('application/json');
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame(['type' => 'json_object'], $params['response_format']);
+    }
+
     /**
      * @return array<string, mixed>
      */
