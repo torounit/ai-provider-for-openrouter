@@ -38,7 +38,6 @@ class OpenRouterProviderAvailabilityTest extends TestCase
         $this->assertNotNull($request);
         $this->assertSame('https://openrouter.ai/api/v1/key', $request->getUri());
         $this->assertSame('Bearer sk-or-valid', $request->getHeaderAsString('Authorization'));
-        $this->assertSame('AI Provider for OpenRouter', $request->getHeaderAsString('X-Title'));
     }
 
     public function testIsNotConfiguredWhenKeyEndpointRejectsKey(): void

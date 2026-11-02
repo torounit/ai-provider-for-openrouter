@@ -136,7 +136,6 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $request = $transporter->getLastRequest();
         $this->assertNotNull($request);
         $this->assertSame('https://openrouter.ai/api/v1/models', $request->getUri());
-        $this->assertSame('AI Provider for OpenRouter', $request->getHeaderAsString('X-Title'));
     }
 
     /**

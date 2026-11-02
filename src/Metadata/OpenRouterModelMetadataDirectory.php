@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace ToroUnit\OpenRouterAiProvider\Metadata;
 
-use ToroUnit\OpenRouterAiProvider\Authentication\OpenRouterRequestAuthentication;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
-use WordPress\AiClient\Providers\Http\Contracts\RequestAuthenticationInterface;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Http\Enums\HttpMethodEnum;
@@ -61,16 +59,6 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      * @var string
      */
     private const DEFAULT_MODEL_ID = 'openrouter/free';
-
-    /**
-     * {@inheritDoc}
-     *
-     * @since 0.1.0
-     */
-    public function getRequestAuthentication(): RequestAuthenticationInterface
-    {
-        return OpenRouterRequestAuthentication::wrap(parent::getRequestAuthentication());
-    }
 
     /**
      * {@inheritDoc}

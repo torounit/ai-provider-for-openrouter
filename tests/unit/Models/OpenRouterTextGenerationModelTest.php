@@ -53,11 +53,6 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->assertNotNull($request);
         $this->assertSame('https://openrouter.ai/api/v1/chat/completions', $request->getUri());
         $this->assertSame('Bearer sk-or-test', $request->getHeaderAsString('Authorization'));
-        $this->assertSame(
-            'https://github.com/torounit/ai-provider-for-openrouter',
-            $request->getHeaderAsString('HTTP-Referer')
-        );
-        $this->assertSame('AI Provider for OpenRouter', $request->getHeaderAsString('X-Title'));
 
         $data = $request->getData();
         $this->assertNotNull($data);

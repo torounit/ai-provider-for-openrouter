@@ -85,8 +85,6 @@ Available models and their supported options are dynamically discovered from the
 
 The provider uses the `OPENROUTER_API_KEY` environment variable or PHP constant for authentication. In WordPress, the API key can also be entered in **Settings > Connectors**.
 
-Requests include the `HTTP-Referer` and `X-Title` [app attribution](https://openrouter.ai/docs/app-attribution) headers. They identify this plugin, not your site.
-
 ## Development
 
 ```bash

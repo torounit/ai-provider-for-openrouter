@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace ToroUnit\OpenRouterAiProvider\Provider;
 
 use Exception;
-use ToroUnit\OpenRouterAiProvider\Authentication\OpenRouterRequestAuthentication;
 use WordPress\AiClient\AiClient;
 use WordPress\AiClient\Common\Contracts\CachesDataInterface;
 use WordPress\AiClient\Common\Traits\WithDataCachingTrait;
@@ -36,9 +35,7 @@ class OpenRouterProviderAvailability implements
     CachesDataInterface
 {
     use WithHttpTransporterTrait;
-    use WithRequestAuthenticationTrait {
-        getRequestAuthentication as private getBaseRequestAuthentication;
-    }
+    use WithRequestAuthenticationTrait;
     use WithDataCachingTrait;
 
     /**
@@ -80,16 +77,6 @@ class OpenRouterProviderAvailability implements
      * @var string
      */
     private const STATUS_INVALID = 'invalid';
-
-    /**
-     * {@inheritDoc}
-     *
-     * @since 0.1.0
-     */
-    public function getRequestAuthentication(): RequestAuthenticationInterface
-    {
-        return OpenRouterRequestAuthentication::wrap($this->getBaseRequestAuthentication());
-    }
 
     /**
      * {@inheritDoc}

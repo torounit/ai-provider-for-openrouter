@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace ToroUnit\OpenRouterAiProvider\Models;
 
-use ToroUnit\OpenRouterAiProvider\Authentication\OpenRouterRequestAuthentication;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use WordPress\AiClient\Common\Exception\InvalidArgumentException;
-use WordPress\AiClient\Providers\Http\Contracts\RequestAuthenticationInterface;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\Enums\HttpMethodEnum;
 use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCompatibleTextGenerationModel;
@@ -19,16 +17,6 @@ use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCo
  */
 class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerationModel
 {
-    /**
-     * {@inheritDoc}
-     *
-     * @since 0.1.0
-     */
-    public function getRequestAuthentication(): RequestAuthenticationInterface
-    {
-        return OpenRouterRequestAuthentication::wrap(parent::getRequestAuthentication());
-    }
-
     /**
      * {@inheritDoc}
      *
