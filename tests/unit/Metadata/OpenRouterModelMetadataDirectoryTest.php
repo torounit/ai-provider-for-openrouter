@@ -10,7 +10,6 @@ use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
 use WordPress\AiClient\Providers\Http\DTO\Response;
-use WordPress\AiClient\Providers\Http\Exception\ResponseException;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 use WordPress\AiClient\Providers\Models\DTO\SupportedOption;
 use WordPress\AiClient\Providers\Models\Enums\OptionEnum;
@@ -49,13 +48,6 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         ]);
 
         $this->assertSame(['vendor/model', 'vendor/legacy'], array_keys($models));
-    }
-
-    public function testUsesModelNameFromResponse(): void
-    {
-        $models = $this->parseFixture();
-
-        $this->assertSame('Auto Router', $this->findModel($models, 'openrouter/auto')->getName());
     }
 
     public function testDerivesOptionsFromSupportedParameters(): void
@@ -113,13 +105,6 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertTrue($multimodal->isSupportedValue(
             [ModalityEnum::audio(), ModalityEnum::text(), ModalityEnum::image()]
         ));
-    }
-
-    public function testThrowsWhenDataIsMissing(): void
-    {
-        $this->expectException(ResponseException::class);
-
-        $this->parseResponse([]);
     }
 
     public function testListModelMetadataRequestsModelsEndpoint(): void

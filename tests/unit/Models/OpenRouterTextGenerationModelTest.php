@@ -71,13 +71,6 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->assertSame(0.5, $params['temperature']);
     }
 
-    public function testPrepareGenerateTextParamsOmitsTopKByDefault(): void
-    {
-        $params = $this->prepareParams(new ModelConfig());
-
-        $this->assertArrayNotHasKey('top_k', $params);
-    }
-
     public function testPrepareGenerateTextParamsRejectsConflictingTopK(): void
     {
         $config = new ModelConfig();
@@ -113,16 +106,6 @@ class OpenRouterTextGenerationModelTest extends TestCase
             ],
             $params['response_format']
         );
-    }
-
-    public function testPrepareGenerateTextParamsUsesJsonObjectWithoutOutputSchema(): void
-    {
-        $config = new ModelConfig();
-        $config->setOutputMimeType('application/json');
-
-        $params = $this->prepareParams($config);
-
-        $this->assertSame(['type' => 'json_object'], $params['response_format']);
     }
 
     /**

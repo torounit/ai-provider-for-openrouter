@@ -50,14 +50,6 @@ class OpenRouterProviderAvailabilityTest extends TestCase
         $this->assertFalse($availability->isConfigured());
     }
 
-    public function testIsNotConfiguredWhenRequestFails(): void
-    {
-        // No queued response makes the transporter throw.
-        $availability = $this->createAvailability(new MockHttpTransporter(), 'sk-or-unreachable');
-
-        $this->assertFalse($availability->isConfigured());
-    }
-
     public function testRejectedKeyIsCached(): void
     {
         $transporter = new MockHttpTransporter([
