@@ -151,6 +151,10 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         $options = [
             new SupportedOption(OptionEnum::systemInstruction()),
         ];
+        // OpenRouter accepts max_tokens for all models, including those that only list max_completion_tokens.
+        if (in_array('max_completion_tokens', $supportedParameters, true)) {
+            $supportedParameters[] = 'max_tokens';
+        }
         foreach ($this->getParameterOptions() as $parameter => $option) {
             if (in_array($parameter, $supportedParameters, true)) {
                 $options[] = new SupportedOption($option);

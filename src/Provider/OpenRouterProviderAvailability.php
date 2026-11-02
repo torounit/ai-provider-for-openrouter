@@ -53,13 +53,33 @@ class OpenRouterProviderAvailability implements
     private const VALID_CACHE_TTL = 3600;
 
     /**
-     * Time in seconds to cache a failed API key check.
+     * Time in seconds to cache a rejected API key.
      *
      * @since 0.1.0
      *
      * @var int
      */
     private const INVALID_CACHE_TTL = 300;
+
+    /**
+     * Cached value for an API key that was accepted.
+     *
+     * A non-falsy value is used for both results, so that cache backends cannot confuse it with a cache miss.
+     *
+     * @since 0.1.0
+     *
+     * @var string
+     */
+    private const STATUS_VALID = 'valid';
+
+    /**
+     * Cached value for an API key that was rejected.
+     *
+     * @since 0.1.0
+     *
+     * @var string
+     */
+    private const STATUS_INVALID = 'invalid';
 
     /**
      * {@inheritDoc}
@@ -87,27 +107,36 @@ class OpenRouterProviderAvailability implements
 
         $cacheKey = $this->getApiKeyCacheKey($requestAuthentication);
         if ($cacheKey !== null && $this->hasCache($cacheKey)) {
-            return (bool) $this->getCache($cacheKey);
+            return $this->getCache($cacheKey) === self::STATUS_VALID;
         }
 
         try {
             $request = new Request(HttpMethodEnum::GET(), OpenRouterProvider::url('key'));
             $request = $requestAuthentication->authenticateRequest($request);
             $response = $this->getHttpTransporter()->send($request);
-            $isConfigured = $response->isSuccessful();
         } catch (Exception $e) {
-            $isConfigured = false;
+            // The API could not be reached, which says nothing about the API key, so this is not cached.
+            return false;
+        }
+
+        if ($response->isSuccessful()) {
+            $status = self::STATUS_VALID;
+        } elseif (in_array($response->getStatusCode(), [401, 403], true)) {
+            $status = self::STATUS_INVALID;
+        } else {
+            // Rate limits and server errors are transient, so the API key is checked again next time.
+            return false;
         }
 
         if ($cacheKey !== null) {
             $this->setCache(
                 $cacheKey,
-                $isConfigured,
-                $isConfigured ? self::VALID_CACHE_TTL : self::INVALID_CACHE_TTL
+                $status,
+                $status === self::STATUS_VALID ? self::VALID_CACHE_TTL : self::INVALID_CACHE_TTL
             );
         }
 
-        return $isConfigured;
+        return $status === self::STATUS_VALID;
     }
 
     /**

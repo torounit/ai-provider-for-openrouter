@@ -86,6 +86,17 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertNotContains((string) OptionEnum::topK(), $optionNames);
     }
 
+    public function testAdvertisesMaxTokensForMaxCompletionTokens(): void
+    {
+        $models = $this->parseResponse([
+            ['id' => 'openai/codex', 'supported_parameters' => ['max_completion_tokens']],
+            ['id' => 'vendor/no-limit', 'supported_parameters' => []],
+        ]);
+
+        $this->assertContains((string) OptionEnum::maxTokens(), $this->getOptionNames($models['openai/codex']));
+        $this->assertNotContains((string) OptionEnum::maxTokens(), $this->getOptionNames($models['vendor/no-limit']));
+    }
+
     public function testAdvertisesInputModalityCombinations(): void
     {
         $models = $this->parseFixture();

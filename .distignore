@@ -13,3 +13,4 @@
 /tests
 /vendor
 /debug.log
+/.phpunit.result.cache

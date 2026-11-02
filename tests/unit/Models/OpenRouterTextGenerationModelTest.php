@@ -114,7 +114,6 @@ class OpenRouterTextGenerationModelTest extends TestCase
                 'json_schema' => [
                     'name' => 'response_schema',
                     'schema' => $schema,
-                    'strict' => true,
                 ],
             ],
             $params['response_format']

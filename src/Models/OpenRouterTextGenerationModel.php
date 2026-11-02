@@ -76,7 +76,8 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      * {@inheritDoc}
      *
      * The OpenAI compatible implementation passes the schema as `json_schema` directly, while the API expects it to
-     * be wrapped in an object with a name.
+     * be wrapped in an object with a name. Strict mode is not enabled, since it only accepts schemas that meet
+     * additional requirements, which vary between the providers that OpenRouter routes to.
      *
      * @since 0.1.0
      *
@@ -93,7 +94,6 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
             'json_schema' => [
                 'name' => 'response_schema',
                 'schema' => $outputSchema,
-                'strict' => true,
             ],
         ];
     }

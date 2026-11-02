@@ -44,6 +44,11 @@ class MockHttpTransporter implements HttpTransporterInterface
         return $response;
     }
 
+    public function queueResponse(Response $response): void
+    {
+        $this->responses[] = $response;
+    }
+
     /**
      * @return list<Request>
      */

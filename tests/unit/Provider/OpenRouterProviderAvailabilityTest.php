@@ -59,6 +59,46 @@ class OpenRouterProviderAvailabilityTest extends TestCase
         $this->assertFalse($availability->isConfigured());
     }
 
+    public function testRejectedKeyIsCached(): void
+    {
+        $transporter = new MockHttpTransporter([
+            new Response(401, [], '{"error":{}}'),
+        ]);
+        $availability = $this->createAvailability($transporter, 'sk-or-cached-rejected');
+
+        $this->assertFalse($availability->isConfigured());
+        $this->assertFalse($availability->isConfigured());
+        $this->assertCount(1, $transporter->getRequests());
+    }
+
+    /**
+     * @dataProvider dataTransientFailures
+     */
+    public function testTransientFailureIsNotCached(?Response $failure): void
+    {
+        $responses = $failure ? [$failure] : [];
+        $transporter = new MockHttpTransporter($responses);
+        $availability = $this->createAvailability($transporter, 'sk-or-transient-' . uniqid());
+
+        $this->assertFalse($availability->isConfigured());
+
+        // Once the API recovers, the key must be checked again instead of being reported as invalid.
+        $transporter->queueResponse(new Response(200, [], '{"data":{}}'));
+        $this->assertTrue($availability->isConfigured());
+    }
+
+    /**
+     * @return array<string, array{0: Response|null}>
+     */
+    public function dataTransientFailures(): array
+    {
+        return [
+            'rate limited' => [new Response(429, [], '{"error":{}}')],
+            'server error' => [new Response(502, [], '{"error":{}}')],
+            'request exception' => [null],
+        ];
+    }
+
     public function testResultIsCachedPerApiKey(): void
     {
         $transporter = new MockHttpTransporter([

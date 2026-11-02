@@ -53,7 +53,8 @@ function register_provider(): void
 
     $registry = AiClient::defaultRegistry();
 
-    if ($registry->hasProvider(OpenRouterProvider::class)) {
+    // Another plugin may already provide an OpenRouter provider with the same ID.
+    if ($registry->hasProvider('openrouter')) {
         return;
     }
 
