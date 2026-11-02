@@ -64,12 +64,15 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
 
         $webSearch = $this->getConfig()->getWebSearch();
         if ($webSearch !== null) {
-            if (isset($params['plugins'])) {
+            // Other plugins passed as a custom option are kept, so that they can be combined with web search.
+            $plugins = $params['plugins'] ?? [];
+            if (!is_array($plugins) || !array_is_list($plugins)) {
                 throw new InvalidArgumentException(
-                    'The custom option "plugins" conflicts with an existing parameter.'
+                    'The custom option "plugins" must be a list to be combined with web search.'
                 );
             }
-            $params['plugins'] = [$this->prepareWebSearchPlugin($webSearch)];
+            $plugins[] = $this->prepareWebSearchPlugin($webSearch);
+            $params['plugins'] = $plugins;
         }
 
         return $params;
@@ -89,12 +92,12 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
     {
         $plugin = ['id' => 'web'];
 
+        // Most search engines do not accept both filters, and the allowed domains already restrict the results.
         $allowedDomains = $webSearch->getAllowedDomains();
+        $disallowedDomains = $webSearch->getDisallowedDomains();
         if ($allowedDomains) {
             $plugin['include_domains'] = $allowedDomains;
-        }
-        $disallowedDomains = $webSearch->getDisallowedDomains();
-        if ($disallowedDomains) {
+        } elseif ($disallowedDomains) {
             $plugin['exclude_domains'] = $disallowedDomains;
         }
 
