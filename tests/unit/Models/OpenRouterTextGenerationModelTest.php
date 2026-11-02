@@ -154,11 +154,9 @@ class OpenRouterTextGenerationModelTest extends TestCase
         );
     }
 
-    public function testPrepareGenerateTextParamsRejectsOtherDocuments(): void
+    public function testPrepareGenerateTextParamsSendsOtherDocumentsAsFile(): void
     {
-        $this->expectException(InvalidArgumentException::class);
-
-        $this->prepareParams(
+        $params = $this->prepareParams(
             new ModelConfig(),
             [
                 new MessagePart(new File(
@@ -167,6 +165,64 @@ class OpenRouterTextGenerationModelTest extends TestCase
                 )),
             ]
         );
+
+        $this->assertSame(
+            [
+                [
+                    'type' => 'file',
+                    'file' => [
+                        'filename' => 'report.docx',
+                        'file_data' => 'https://example.com/report.docx',
+                    ],
+                ],
+            ],
+            $params['messages'][0]['content']
+        );
+    }
+
+    public function testPrepareGenerateTextParamsSendsInlineTextFileAsFile(): void
+    {
+        $dataUri = 'data:text/plain;base64,' . base64_encode('Hello');
+
+        $params = $this->prepareParams(new ModelConfig(), [new MessagePart(new File($dataUri))]);
+
+        $this->assertSame(
+            [
+                [
+                    'type' => 'file',
+                    'file' => [
+                        'filename' => 'document.txt',
+                        'file_data' => $dataUri,
+                    ],
+                ],
+            ],
+            $params['messages'][0]['content']
+        );
+    }
+
+    /**
+     * @dataProvider dataRemoteFilenames
+     */
+    public function testPrepareGenerateTextParamsDerivesFilenameFromUrl(string $url, string $expectedFilename): void
+    {
+        $params = $this->prepareParams(
+            new ModelConfig(),
+            [new MessagePart(new File($url, 'application/pdf'))]
+        );
+
+        $this->assertSame($expectedFilename, $params['messages'][0]['content'][0]['file']['filename']);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public function dataRemoteFilenames(): array
+    {
+        return [
+            'encoded' => ['https://example.com/My%20Report.pdf', 'My Report.pdf'],
+            'without extension' => ['https://example.com/download?id=5', 'download.pdf'],
+            'without path' => ['https://example.com', 'document.pdf'],
+        ];
     }
 
     /**

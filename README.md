@@ -81,7 +81,7 @@ Available models and their supported options are dynamically discovered from the
 - `openrouter/auto` picks a suitable model for each prompt from all models, including paid ones.
 - Models that cannot be used through the Chat Completions API (e.g. `:batch` variants) are not listed.
 
-Image, audio, and PDF inputs can be sent to models that support them. PDFs are sent as inline data or by URL; other document types are not supported.
+Image, audio, and file inputs (PDFs and other documents or text files) can be sent to models that support them. Files are sent as inline data or by URL, and OpenRouter decides which file types it accepts.
 
 ## Configuration
 

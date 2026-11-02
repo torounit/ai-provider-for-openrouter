@@ -65,7 +65,8 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
     /**
      * {@inheritDoc}
      *
-     * Adds support for PDF files, which OpenRouter accepts as `file` content parts, either inline or by URL.
+     * Adds support for documents and text files, which are sent as `file` content parts, either inline or by URL.
+     * Like the AI Provider for OpenAI, this leaves it to the API to reject file types that it does not support.
      *
      * @since 0.1.0
      *
@@ -74,11 +75,11 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
     protected function getMessagePartContentData(MessagePart $part): ?array
     {
         $file = $part->getFile();
-        if ($part->getType()->isFile() && $file !== null && $file->getMimeType() === 'application/pdf') {
+        if ($file !== null && ($file->isDocument() || $file->isText())) {
             return [
                 'type' => 'file',
                 'file' => [
-                    'filename' => $this->getPdfFilename($file),
+                    'filename' => $this->getFilename($file),
                     'file_data' => $file->isRemote() ? $file->getUrl() : $file->getDataUri(),
                 ],
             ];
@@ -88,23 +89,30 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
     }
 
     /**
-     * Returns the filename to send for a PDF file.
+     * Returns the filename to send for a file.
      *
      * @since 0.1.0
      *
-     * @param File $file The PDF file.
-     * @return string The filename from the URL, or a generic filename for inline files.
+     * @param File $file The file.
+     * @return string The filename from the URL, or a generic filename, with an extension matching the MIME type.
      */
-    private function getPdfFilename(File $file): string
+    private function getFilename(File $file): string
     {
+        $filename = 'document';
+
         $url = $file->getUrl();
         if ($url !== null) {
             $path = parse_url($url, PHP_URL_PATH);
-            if (is_string($path) && $path !== '' && basename($path) !== '') {
-                return basename($path);
+            if (is_string($path) && basename($path) !== '') {
+                $filename = rawurldecode(basename($path));
             }
         }
-        return 'document.pdf';
+
+        if (pathinfo($filename, PATHINFO_EXTENSION) === '') {
+            $filename .= '.' . $file->getMimeTypeObject()->toExtension();
+        }
+
+        return $filename;
     }
 
     /**

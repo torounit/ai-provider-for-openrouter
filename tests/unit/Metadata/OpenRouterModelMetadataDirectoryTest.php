@@ -93,10 +93,10 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
     {
         $models = $this->parseFixture();
 
-        $textOnly = $this->getInputModalitiesOption($this->findModel($models, 'anthropic/claude-haiku-5.5'));
-        $this->assertTrue($textOnly->isSupportedValue([ModalityEnum::text(), ModalityEnum::image()]));
-        $this->assertFalse($textOnly->isSupportedValue([ModalityEnum::text(), ModalityEnum::audio()]));
-        $this->assertTrue($textOnly->isSupportedValue(
+        $imageAndFile = $this->getInputModalitiesOption($this->findModel($models, 'anthropic/claude-haiku-5.5'));
+        $this->assertTrue($imageAndFile->isSupportedValue([ModalityEnum::text(), ModalityEnum::image()]));
+        $this->assertFalse($imageAndFile->isSupportedValue([ModalityEnum::text(), ModalityEnum::audio()]));
+        $this->assertTrue($imageAndFile->isSupportedValue(
             [ModalityEnum::text(), ModalityEnum::image(), ModalityEnum::document()]
         ));
 
