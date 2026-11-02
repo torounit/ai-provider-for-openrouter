@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ToroUnit\OpenRouterAiProvider\Metadata;
 
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
+use WordPress\AiClient\Files\Enums\FileTypeEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\DTO\Response;
@@ -47,6 +48,15 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      * @var string
      */
     private const CHAT_COMPLETIONS_ENDPOINT = '/api/v1/chat/completions';
+
+    /**
+     * The endpoint a model must support to be usable for image generation.
+     *
+     * @since 0.1.0
+     *
+     * @var string
+     */
+    private const IMAGES_ENDPOINT = '/api/v1/images';
 
     /**
      * The model ID that is sorted first, so that it is used when no model preference is given.
@@ -220,8 +230,17 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
                 $options[] = new SupportedOption($option);
             }
         }
+        $supportsImageGeneration = in_array(self::IMAGES_ENDPOINT, $modelData['endpoints'] ?? [], true);
+
+        $outputMimeTypes = [];
         if (in_array('response_format', $supportedParameters, true)) {
-            $options[] = new SupportedOption(OptionEnum::outputMimeType(), ['text/plain', 'application/json']);
+            $outputMimeTypes = ['text/plain', 'application/json'];
+        }
+        if ($supportsImageGeneration) {
+            $outputMimeTypes = array_merge($outputMimeTypes, ['image/png', 'image/jpeg', 'image/webp']);
+        }
+        if ($outputMimeTypes) {
+            $options[] = new SupportedOption(OptionEnum::outputMimeType(), $outputMimeTypes);
         }
         // The web search plugin works with any model.
         $options[] = new SupportedOption(OptionEnum::webSearch());
@@ -230,15 +249,30 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             OptionEnum::inputModalities(),
             $this->getInputModalityCombinations($modelData['architecture']['input_modalities'] ?? ['text'])
         );
-        $options[] = new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::text()]]);
+
+        $capabilities = [
+            CapabilityEnum::textGeneration(),
+            CapabilityEnum::chatHistory(),
+        ];
+        if ($supportsImageGeneration) {
+            $capabilities[] = CapabilityEnum::imageGeneration();
+            $options[] = new SupportedOption(OptionEnum::outputModalities(), [
+                [ModalityEnum::text()],
+                [ModalityEnum::image()],
+            ]);
+            $options[] = new SupportedOption(OptionEnum::candidateCount());
+            // The images API always returns base64 data.
+            $options[] = new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]);
+            $options[] = new SupportedOption(OptionEnum::outputMediaOrientation());
+            $options[] = new SupportedOption(OptionEnum::outputMediaAspectRatio());
+        } else {
+            $options[] = new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::text()]]);
+        }
 
         return new ModelMetadata(
             $modelData['id'],
             $modelData['name'] ?? $modelData['id'],
-            [
-                CapabilityEnum::textGeneration(),
-                CapabilityEnum::chatHistory(),
-            ],
+            $capabilities,
             $options
         );
     }

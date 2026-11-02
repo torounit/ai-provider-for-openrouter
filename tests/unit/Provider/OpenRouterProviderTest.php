@@ -7,6 +7,8 @@ namespace ToroUnit\OpenRouterAiProvider\Tests\unit\Provider;
 use PHPUnit\Framework\TestCase;
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProviderAvailability;
@@ -83,6 +85,29 @@ class OpenRouterProviderTest extends TestCase
         );
 
         $this->assertInstanceOf(OpenRouterEmbeddingGenerationModel::class, $model);
+    }
+
+    public function testCreatesTextAndImageGenerationModel(): void
+    {
+        $model = $this->createModel(
+            new ModelMetadata(
+                'google/gemini-3.1-flash-lite-image',
+                'Gemini Flash Lite Image',
+                [CapabilityEnum::textGeneration(), CapabilityEnum::chatHistory(), CapabilityEnum::imageGeneration()],
+                []
+            )
+        );
+
+        $this->assertInstanceOf(OpenRouterTextAndImageGenerationModel::class, $model);
+    }
+
+    public function testCreatesImageGenerationModel(): void
+    {
+        $model = $this->createModel(
+            new ModelMetadata('vendor/image', 'Image', [CapabilityEnum::imageGeneration()], [])
+        );
+
+        $this->assertInstanceOf(OpenRouterImageGenerationModel::class, $model);
     }
 
     public function testThrowsForUnsupportedCapabilities(): void
