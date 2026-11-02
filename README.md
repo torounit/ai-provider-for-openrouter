@@ -81,6 +81,8 @@ Available models and their supported options are dynamically discovered from the
 - `openrouter/auto` picks a suitable model for each prompt from all models, including paid ones.
 - Models that cannot be used through the Chat Completions API (e.g. `:batch` variants) are not listed.
 
+Image, audio, and PDF inputs can be sent to models that support them. PDFs are sent as inline data or by URL; other document types are not supported.
+
 ## Configuration
 
 The provider uses the `OPENROUTER_API_KEY` environment variable or PHP constant for authentication. In WordPress, the API key can also be entered in **Settings > Connectors**.

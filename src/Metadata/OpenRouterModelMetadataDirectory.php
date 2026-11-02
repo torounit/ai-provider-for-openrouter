@@ -183,6 +183,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         $inputModalityMap = [
             'image' => ModalityEnum::image(),
             'audio' => ModalityEnum::audio(),
+            'file' => ModalityEnum::document(),
         ];
         foreach ($inputModalityMap as $inputModality => $modality) {
             if (!in_array($inputModality, $inputModalities, true)) {

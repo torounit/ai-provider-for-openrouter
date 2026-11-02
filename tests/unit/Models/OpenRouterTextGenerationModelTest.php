@@ -9,6 +9,7 @@ use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
 use WordPress\AiClient\Common\Exception\InvalidArgumentException;
+use WordPress\AiClient\Files\DTO\File;
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
@@ -108,10 +109,71 @@ class OpenRouterTextGenerationModelTest extends TestCase
         );
     }
 
+    public function testPrepareGenerateTextParamsSendsInlinePdfAsFile(): void
+    {
+        $dataUri = 'data:application/pdf;base64,' . base64_encode('%PDF-1.4 test');
+
+        $params = $this->prepareParams(
+            new ModelConfig(),
+            [new MessagePart('Summarize this.'), new MessagePart(new File($dataUri))]
+        );
+
+        $this->assertSame(
+            [
+                ['type' => 'text', 'text' => 'Summarize this.'],
+                [
+                    'type' => 'file',
+                    'file' => [
+                        'filename' => 'document.pdf',
+                        'file_data' => $dataUri,
+                    ],
+                ],
+            ],
+            $params['messages'][0]['content']
+        );
+    }
+
+    public function testPrepareGenerateTextParamsSendsRemotePdfAsFile(): void
+    {
+        $params = $this->prepareParams(
+            new ModelConfig(),
+            [new MessagePart(new File('https://example.com/report.pdf', 'application/pdf'))]
+        );
+
+        $this->assertSame(
+            [
+                [
+                    'type' => 'file',
+                    'file' => [
+                        'filename' => 'report.pdf',
+                        'file_data' => 'https://example.com/report.pdf',
+                    ],
+                ],
+            ],
+            $params['messages'][0]['content']
+        );
+    }
+
+    public function testPrepareGenerateTextParamsRejectsOtherDocuments(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->prepareParams(
+            new ModelConfig(),
+            [
+                new MessagePart(new File(
+                    'https://example.com/report.docx',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                )),
+            ]
+        );
+    }
+
     /**
+     * @param list<MessagePart>|null $parts
      * @return array<string, mixed>
      */
-    private function prepareParams(ModelConfig $config): array
+    private function prepareParams(ModelConfig $config, ?array $parts = null): array
     {
         $model = new class (
             new ModelMetadata('vendor/model', 'Model', [CapabilityEnum::textGeneration()], []),
@@ -128,7 +190,11 @@ class OpenRouterTextGenerationModelTest extends TestCase
         };
         $model->setConfig($config);
 
-        return $model->exposePrepareGenerateTextParams([$this->createUserMessage('Hi')]);
+        $message = $parts !== null
+            ? new Message(MessageRoleEnum::user(), $parts)
+            : $this->createUserMessage('Hi');
+
+        return $model->exposePrepareGenerateTextParams([$message]);
     }
 
     private function createModel(MockHttpTransporter $transporter, string $modelId): OpenRouterTextGenerationModel

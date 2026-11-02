@@ -96,8 +96,14 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $textOnly = $this->getInputModalitiesOption($this->findModel($models, 'anthropic/claude-haiku-5.5'));
         $this->assertTrue($textOnly->isSupportedValue([ModalityEnum::text(), ModalityEnum::image()]));
         $this->assertFalse($textOnly->isSupportedValue([ModalityEnum::text(), ModalityEnum::audio()]));
-        // Documents are not supported yet.
-        $this->assertFalse($textOnly->isSupportedValue([ModalityEnum::text(), ModalityEnum::document()]));
+        $this->assertTrue($textOnly->isSupportedValue(
+            [ModalityEnum::text(), ModalityEnum::image(), ModalityEnum::document()]
+        ));
+
+        $withoutFiles = $this->getInputModalitiesOption(
+            $this->findModel($models, 'nvidia/nemotron-3.5-super-vl:free')
+        );
+        $this->assertFalse($withoutFiles->isSupportedValue([ModalityEnum::text(), ModalityEnum::document()]));
 
         $multimodal = $this->getInputModalitiesOption($this->findModel($models, 'meta/muse-spark-open'));
         $this->assertTrue($multimodal->isSupportedValue([ModalityEnum::text()]));

@@ -6,6 +6,8 @@ namespace ToroUnit\OpenRouterAiProvider\Models;
 
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use WordPress\AiClient\Common\Exception\InvalidArgumentException;
+use WordPress\AiClient\Files\DTO\File;
+use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\Enums\HttpMethodEnum;
 use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCompatibleTextGenerationModel;
@@ -58,6 +60,51 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
         }
 
         return $params;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Adds support for PDF files, which OpenRouter accepts as `file` content parts, either inline or by URL.
+     *
+     * @since 0.1.0
+     *
+     * @link https://openrouter.ai/docs/guides/overview/multimodal/pdfs
+     */
+    protected function getMessagePartContentData(MessagePart $part): ?array
+    {
+        $file = $part->getFile();
+        if ($part->getType()->isFile() && $file !== null && $file->getMimeType() === 'application/pdf') {
+            return [
+                'type' => 'file',
+                'file' => [
+                    'filename' => $this->getPdfFilename($file),
+                    'file_data' => $file->isRemote() ? $file->getUrl() : $file->getDataUri(),
+                ],
+            ];
+        }
+
+        return parent::getMessagePartContentData($part);
+    }
+
+    /**
+     * Returns the filename to send for a PDF file.
+     *
+     * @since 0.1.0
+     *
+     * @param File $file The PDF file.
+     * @return string The filename from the URL, or a generic filename for inline files.
+     */
+    private function getPdfFilename(File $file): string
+    {
+        $url = $file->getUrl();
+        if ($url !== null) {
+            $path = parse_url($url, PHP_URL_PATH);
+            if (is_string($path) && $path !== '' && basename($path) !== '') {
+                return basename($path);
+            }
+        }
+        return 'document.pdf';
     }
 
     /**
