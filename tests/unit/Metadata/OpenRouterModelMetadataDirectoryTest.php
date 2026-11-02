@@ -121,20 +121,90 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         ));
     }
 
-    public function testListModelMetadataRequestsModelsEndpoint(): void
+    public function testListModelMetadataRequestsModelsAndEmbeddingModelsEndpoints(): void
     {
-        $transporter = new MockHttpTransporter([
-            new Response(200, [], (string) file_get_contents(dirname(__DIR__, 2) . '/fixtures/models.json')),
-        ]);
-        $directory = new OpenRouterModelMetadataDirectory();
-        $directory->setHttpTransporter($transporter);
-        $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+        $transporter = $this->createFixtureTransporter();
+        $directory = $this->createDirectory($transporter);
 
         $this->assertTrue($directory->hasModelMetadata('openrouter/auto'));
 
-        $request = $transporter->getLastRequest();
-        $this->assertNotNull($request);
-        $this->assertSame('https://openrouter.ai/api/v1/models', $request->getUri());
+        $requests = $transporter->getRequests();
+        $this->assertCount(2, $requests);
+        $this->assertSame('https://openrouter.ai/api/v1/models', $requests[0]->getUri());
+        $this->assertSame('https://openrouter.ai/api/v1/embeddings/models', $requests[1]->getUri());
+    }
+
+    public function testListsEmbeddingModelsAfterTextModels(): void
+    {
+        $ids = array_map(
+            static function (ModelMetadata $metadata): string {
+                return $metadata->getId();
+            },
+            $this->createDirectory($this->createFixtureTransporter())->listModelMetadata()
+        );
+
+        $this->assertSame('openrouter/free', $ids[0]);
+        $this->assertSame(
+            [
+                'nvidia/nemotron-3.5-embed-1b:free',
+                'openai/text-embedding-ada-002',
+                'openai/text-embedding-3-small',
+            ],
+            array_slice($ids, -3)
+        );
+    }
+
+    public function testEmbeddingModelsAdvertiseEmbeddingCapability(): void
+    {
+        $directory = $this->createDirectory($this->createFixtureTransporter());
+        $model = $directory->getModelMetadata('nvidia/nemotron-3.5-embed-1b:free');
+
+        $capabilities = $model->getSupportedCapabilities();
+        $this->assertCount(1, $capabilities);
+        $this->assertTrue($capabilities[0]->isEmbeddingGeneration());
+        $this->assertSame('NVIDIA: Nemotron 3.5 Embed 1B (free)', $model->getName());
+
+        $inputModalities = $this->getInputModalitiesOption($model);
+        $this->assertTrue($inputModalities->isSupportedValue([ModalityEnum::text()]));
+        $this->assertFalse($inputModalities->isSupportedValue([ModalityEnum::text(), ModalityEnum::image()]));
+
+        $optionNames = $this->getOptionNames($model);
+        $this->assertContains((string) OptionEnum::customOptions(), $optionNames);
+        // Most embedding models reject the dimensions parameter.
+        $this->assertNotContains((string) OptionEnum::dimensions(), $optionNames);
+    }
+
+    public function testOnlyOpenAiThirdGenerationEmbeddingModelsAdvertiseDimensions(): void
+    {
+        $directory = $this->createDirectory($this->createFixtureTransporter());
+
+        $this->assertContains(
+            (string) OptionEnum::dimensions(),
+            $this->getOptionNames($directory->getModelMetadata('openai/text-embedding-3-small'))
+        );
+        $this->assertNotContains(
+            (string) OptionEnum::dimensions(),
+            $this->getOptionNames($directory->getModelMetadata('openai/text-embedding-ada-002'))
+        );
+    }
+
+    private function createFixtureTransporter(): MockHttpTransporter
+    {
+        $fixtures = dirname(__DIR__, 2) . '/fixtures';
+        return new MockHttpTransporter([
+            new Response(200, [], (string) file_get_contents($fixtures . '/models.json')),
+            new Response(200, [], (string) file_get_contents($fixtures . '/embedding-models.json')),
+        ]);
+    }
+
+    private function createDirectory(MockHttpTransporter $transporter): OpenRouterModelMetadataDirectory
+    {
+        $directory = new OpenRouterModelMetadataDirectory();
+        $directory->setHttpTransporter($transporter);
+        $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test-' . uniqid()));
+        // Each test needs a fresh model list, since it is cached per class.
+        $directory->invalidateCaches();
+        return $directory;
     }
 
     /**

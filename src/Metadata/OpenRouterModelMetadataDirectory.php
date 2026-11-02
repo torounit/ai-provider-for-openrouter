@@ -63,6 +63,29 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     /**
      * {@inheritDoc}
      *
+     * Embedding models are listed by a separate endpoint, so they are added after the text generation models.
+     *
+     * @since 0.1.0
+     */
+    protected function sendListModelsRequest(): array
+    {
+        $modelMetadataMap = parent::sendListModelsRequest();
+
+        $request = $this->createRequest(HttpMethodEnum::GET(), 'embeddings/models');
+        $request = $this->getRequestAuthentication()->authenticateRequest($request);
+        $response = $this->getHttpTransporter()->send($request);
+        $this->throwIfNotSuccessful($response);
+
+        foreach ($this->parseResponseToEmbeddingModelMetadataList($response) as $modelMetadata) {
+            $modelMetadataMap[$modelMetadata->getId()] = $modelMetadata;
+        }
+
+        return $modelMetadataMap;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
      * @since 0.1.0
      */
     protected function createRequest(HttpMethodEnum $method, string $path, array $headers = [], $data = null): Request
@@ -100,6 +123,52 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         }
 
         return $this->sortModels($models);
+    }
+
+    /**
+     * Parses the response from the API endpoint to list embedding models into a list of model metadata objects.
+     *
+     * @since 0.1.0
+     *
+     * @param Response $response The response from the API endpoint to list embedding models.
+     * @return list<ModelMetadata> List of model metadata objects.
+     */
+    protected function parseResponseToEmbeddingModelMetadataList(Response $response): array
+    {
+        /** @var ModelsResponseData $responseData */
+        $responseData = $response->getData();
+        if (!isset($responseData['data']) || !is_array($responseData['data'])) {
+            throw ResponseException::fromMissingData('OpenRouter', 'data');
+        }
+
+        $models = [];
+        foreach ($responseData['data'] as $modelData) {
+            if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
+                continue;
+            }
+
+            // Like the AI Provider for OpenAI, only text inputs are supported.
+            $options = [
+                new SupportedOption(OptionEnum::inputModalities(), [[ModalityEnum::text()]]),
+            ];
+            /*
+             * The API does not tell which models accept the dimensions parameter, and most of them reject it.
+             * OpenAI's third generation models are known to support it.
+             */
+            if (str_starts_with($modelData['id'], 'openai/text-embedding-3-')) {
+                $options[] = new SupportedOption(OptionEnum::dimensions());
+            }
+            $options[] = new SupportedOption(OptionEnum::customOptions());
+
+            $models[] = new ModelMetadata(
+                $modelData['id'],
+                $modelData['name'] ?? $modelData['id'],
+                [CapabilityEnum::embeddingGeneration()],
+                $options
+            );
+        }
+
+        return $models;
     }
 
     /**

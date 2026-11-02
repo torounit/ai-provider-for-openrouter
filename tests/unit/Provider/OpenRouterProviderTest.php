@@ -6,6 +6,7 @@ namespace ToroUnit\OpenRouterAiProvider\Tests\unit\Provider;
 
 use PHPUnit\Framework\TestCase;
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProviderAvailability;
@@ -68,6 +69,20 @@ class OpenRouterProviderTest extends TestCase
 
         $this->assertInstanceOf(OpenRouterTextGenerationModel::class, $model);
         $this->assertSame('openrouter/auto', $model->metadata()->getId());
+    }
+
+    public function testCreatesEmbeddingGenerationModel(): void
+    {
+        $model = $this->createModel(
+            new ModelMetadata(
+                'nvidia/nemotron-3.5-embed-1b:free',
+                'Nemotron Embed',
+                [CapabilityEnum::embeddingGeneration()],
+                []
+            )
+        );
+
+        $this->assertInstanceOf(OpenRouterEmbeddingGenerationModel::class, $model);
     }
 
     public function testThrowsForUnsupportedCapabilities(): void

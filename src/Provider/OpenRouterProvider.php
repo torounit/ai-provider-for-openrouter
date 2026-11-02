@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ToroUnit\OpenRouterAiProvider\Provider;
 
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use WordPress\AiClient\Common\Exception\RuntimeException;
 use WordPress\AiClient\Providers\ApiBasedImplementation\AbstractApiProvider;
@@ -46,6 +47,9 @@ class OpenRouterProvider extends AbstractApiProvider
         foreach ($capabilities as $capability) {
             if ($capability->isTextGeneration()) {
                 return new OpenRouterTextGenerationModel($modelMetadata, $providerMetadata);
+            }
+            if ($capability->isEmbeddingGeneration()) {
+                return new OpenRouterEmbeddingGenerationModel($modelMetadata, $providerMetadata);
             }
         }
 
