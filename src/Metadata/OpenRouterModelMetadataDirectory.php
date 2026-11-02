@@ -187,15 +187,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
                 continue;
             }
-            /*
-             * Only `:free` variants and the free models router are free. Prices are not checked, since some models
-             * that are charged per request list a price of zero, e.g. Lyria.
-             */
-            if (
-                $this->freeModelsOnly &&
-                !str_ends_with($modelData['id'], ':free') &&
-                $modelData['id'] !== self::DEFAULT_MODEL_ID
-            ) {
+            if ($this->freeModelsOnly && !OpenRouterProvider::isFreeModelId($modelData['id'])) {
                 continue;
             }
             /** @var ModelData $modelData */
@@ -212,22 +204,17 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      *
      * @since 0.1.0
      *
-     * @param array<mixed> $modelsData The models data from the API response.
+     * @param list<ModelData> $modelsData The data of the models to list.
      */
     private function assignFlatModelIds(array $modelsData): void
     {
         $created = [];
         foreach ($modelsData as $modelData) {
-            if (!is_array($modelData) || !isset($modelData['id']) || !is_string($modelData['id'])) {
-                continue;
-            }
             $flatModelId = $this->getFlatModelId($modelData['id']);
             if ($flatModelId === null || isset($this->exposedModelIds[$flatModelId])) {
                 continue;
             }
-            $modelCreated = isset($modelData['created']) && is_int($modelData['created'])
-                ? $modelData['created']
-                : PHP_INT_MAX;
+            $modelCreated = $modelData['created'] ?? PHP_INT_MAX;
             if (!isset($this->flatModelIdOwners[$flatModelId]) || $modelCreated < $created[$flatModelId]) {
                 $this->flatModelIdOwners[$flatModelId] = $modelData['id'];
                 $created[$flatModelId] = $modelCreated;

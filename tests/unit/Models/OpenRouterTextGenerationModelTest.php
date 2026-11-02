@@ -353,6 +353,76 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $this->assertSame('anthropic/claude-haiku-5.5', $data['model']);
     }
 
+    /**
+     * @dataProvider dataChargedRequestsInFreeModelsOnlyMode
+     *
+     * @param array<string, mixed> $customOptions
+     */
+    public function testRejectsChargedRequestsInFreeModelsOnlyMode(
+        string $modelId,
+        bool $webSearch,
+        array $customOptions
+    ): void {
+        putenv('OPENROUTER_FREE_MODELS_ONLY=true');
+        try {
+            $config = new ModelConfig();
+            if ($webSearch) {
+                $config->setWebSearch(new WebSearch());
+            }
+            $config->setCustomOptions($customOptions);
+            $model = new OpenRouterTextGenerationModel(
+                new ModelMetadata($modelId, $modelId, [CapabilityEnum::textGeneration()], []),
+                OpenRouterProvider::metadata()
+            );
+            $model->setHttpTransporter(new MockHttpTransporter());
+            $model->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $model->setConfig($config);
+
+            $this->expectException(InvalidArgumentException::class);
+
+            $model->generateTextResult([$this->createUserMessage('Hello')]);
+        } finally {
+            putenv('OPENROUTER_FREE_MODELS_ONLY');
+        }
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: bool, 2: array<string, mixed>}>
+     */
+    public function dataChargedRequestsInFreeModelsOnlyMode(): array
+    {
+        return [
+            'paid model' => ['anthropic/claude-haiku-5.5', false, []],
+            'web search' => ['openrouter/free', true, []],
+            'plugins' => ['openrouter/free', false, ['plugins' => [['id' => 'web']]]],
+            'paid fallback models' => ['openrouter/free', false, ['models' => ['anthropic/claude-haiku-5.5']]],
+        ];
+    }
+
+    public function testAllowsFreeRequestsInFreeModelsOnlyMode(): void
+    {
+        putenv('OPENROUTER_FREE_MODELS_ONLY=true');
+        try {
+            $transporter = new MockHttpTransporter([
+                $this->createChatResponse(['role' => 'assistant', 'content' => 'Hi']),
+            ]);
+            $config = new ModelConfig();
+            $config->setCustomOptions(['models' => ['nvidia/nemotron-3.5-super-vl:free']]);
+            $model = new OpenRouterTextGenerationModel(
+                new ModelMetadata('nemotron-3.5-super-vl:free', 'Nemotron', [CapabilityEnum::textGeneration()], []),
+                OpenRouterProvider::metadata(),
+                'nvidia/nemotron-3.5-super-vl:free'
+            );
+            $model->setHttpTransporter($transporter);
+            $model->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $model->setConfig($config);
+
+            $this->assertSame('Hi', $model->generateTextResult([$this->createUserMessage('Hello')])->toText());
+        } finally {
+            putenv('OPENROUTER_FREE_MODELS_ONLY');
+        }
+    }
+
     public function testPrepareGenerateTextParamsIncludesTopK(): void
     {
         $config = new ModelConfig();

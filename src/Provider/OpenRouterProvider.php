@@ -202,9 +202,25 @@ class OpenRouterProvider extends AbstractApiProvider
      *
      * @return bool True to list only free models.
      */
-    protected static function freeModelsOnly(): bool
+    public static function freeModelsOnly(): bool
     {
         return self::getBooleanSetting(self::FREE_MODELS_ONLY);
+    }
+
+    /**
+     * Checks whether the given OpenRouter model ID is a free model.
+     *
+     * Only `:free` variants and the free models router are free. Prices are not checked, since some models that are
+     * charged per request list a price of zero, e.g. Lyria.
+     *
+     * @since 0.1.0
+     *
+     * @param string $openRouterModelId OpenRouter's model ID.
+     * @return bool True if the model is free.
+     */
+    public static function isFreeModelId(string $openRouterModelId): bool
+    {
+        return str_ends_with($openRouterModelId, ':free') || $openRouterModelId === 'openrouter/free';
     }
 
     /**

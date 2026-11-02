@@ -191,7 +191,7 @@ class OpenRouterProviderTest extends TestCase
     }
 
     /**
-     * @dataProvider dataFullModelIdsSettings
+     * @dataProvider dataBooleanSettings
      */
     public function testUsesFullModelIdsWhenEnabled(string $value, bool $expected): void
     {
@@ -211,7 +211,7 @@ class OpenRouterProviderTest extends TestCase
     }
 
     /**
-     * @dataProvider dataFullModelIdsSettings
+     * @dataProvider dataBooleanSettings
      */
     public function testUsesFreeModelsOnlyWhenEnabled(string $value, bool $expected): void
     {
@@ -233,7 +233,7 @@ class OpenRouterProviderTest extends TestCase
     /**
      * @return array<string, array{0: string, 1: bool}>
      */
-    public function dataFullModelIdsSettings(): array
+    public function dataBooleanSettings(): array
     {
         return [
             'true' => ['true', true],
