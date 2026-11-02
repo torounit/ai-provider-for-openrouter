@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ToroUnit\OpenRouterAiProvider\Metadata;
 
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextToSpeechConversionModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use WordPress\AiClient\Files\Enums\FileTypeEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
@@ -242,12 +243,23 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         }
         $supportsImageGeneration = in_array(self::IMAGES_ENDPOINT, $modelData['endpoints'] ?? [], true);
 
+        $inputModalities = $modelData['architecture']['input_modalities'] ?? ['text'];
+        $outputModalities = $modelData['architecture']['output_modalities'] ?? ['text'];
+        /*
+         * Models that take and output audio can speak a given text. Other models that output audio, such as Lyria,
+         * generate music instead.
+         */
+        $supportsSpeech = in_array('audio', $inputModalities, true) && in_array('audio', $outputModalities, true);
+
         $outputMimeTypes = [];
         if (in_array('response_format', $supportedParameters, true)) {
             $outputMimeTypes = ['text/plain', 'application/json'];
         }
         if ($supportsImageGeneration) {
             $outputMimeTypes = array_merge($outputMimeTypes, self::IMAGE_MIME_TYPES);
+        }
+        if ($supportsSpeech) {
+            $outputMimeTypes[] = OpenRouterTextToSpeechConversionModel::MIME_TYPE;
         }
         if ($outputMimeTypes) {
             $options[] = new SupportedOption(OptionEnum::outputMimeType(), $outputMimeTypes);
@@ -257,23 +269,29 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         $options[] = new SupportedOption(OptionEnum::customOptions());
         $options[] = new SupportedOption(
             OptionEnum::inputModalities(),
-            $this->getInputModalityCombinations($modelData['architecture']['input_modalities'] ?? ['text'])
+            $this->getInputModalityCombinations($inputModalities)
         );
 
         $capabilities = [
             CapabilityEnum::textGeneration(),
             CapabilityEnum::chatHistory(),
         ];
+        $outputModalityOptions = [[ModalityEnum::text()]];
         if ($supportsImageGeneration) {
             $capabilities[] = CapabilityEnum::imageGeneration();
-            $options[] = new SupportedOption(OptionEnum::outputModalities(), [
-                [ModalityEnum::text()],
-                [ModalityEnum::image()],
-            ]);
+            $outputModalityOptions[] = [ModalityEnum::image()];
             $options = array_merge($options, $this->getImageOptions());
-        } else {
-            $options[] = new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::text()]]);
         }
+        if ($supportsSpeech) {
+            $capabilities[] = CapabilityEnum::textToSpeechConversion();
+            $outputModalityOptions[] = [ModalityEnum::audio()];
+            $options[] = new SupportedOption(OptionEnum::outputSpeechVoice());
+        }
+        if ($supportsImageGeneration || $supportsSpeech) {
+            // Generated images and speech are always returned as base64 data.
+            $options[] = new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]);
+        }
+        $options[] = new SupportedOption(OptionEnum::outputModalities(), $outputModalityOptions);
 
         return new ModelMetadata(
             $modelData['id'],
@@ -302,6 +320,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
                     new SupportedOption(OptionEnum::inputModalities(), [[ModalityEnum::text()]]),
                     new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::image()]]),
                     new SupportedOption(OptionEnum::outputMimeType(), self::IMAGE_MIME_TYPES),
+                    new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]),
                     new SupportedOption(OptionEnum::customOptions()),
                 ],
                 $this->getImageOptions()
@@ -310,7 +329,7 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     }
 
     /**
-     * Returns the options specific to the images API.
+     * Returns the options specific to the images API, other than the output file type.
      *
      * @since 0.1.0
      *
@@ -320,8 +339,6 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     {
         return [
             new SupportedOption(OptionEnum::candidateCount()),
-            // The images API always returns base64 data.
-            new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]),
             new SupportedOption(OptionEnum::outputMediaOrientation()),
             new SupportedOption(OptionEnum::outputMediaAspectRatio()),
         ];

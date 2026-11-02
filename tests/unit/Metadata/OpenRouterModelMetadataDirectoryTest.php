@@ -32,6 +32,8 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
                 'meta/muse-spark-open',
                 'google/gemini-nano-banana-2.1',
                 'openrouter/auto',
+                'openai/gpt-audio-mini',
+                'google/lyria-3-clip-preview',
             ],
             array_keys($this->parseFixture())
         );
@@ -154,6 +156,42 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertTrue($options[(string) OptionEnum::inputModalities()]->isSupportedValue([ModalityEnum::text()]));
         $this->assertFalse($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('application/json'));
         $this->assertArrayNotHasKey((string) OptionEnum::systemInstruction(), $options);
+    }
+
+    public function testSpeechModelsAdvertiseTextToSpeechConversion(): void
+    {
+        $model = $this->findModel($this->parseFixture(), 'openai/gpt-audio-mini');
+
+        $this->assertSame(
+            [
+                (string) CapabilityEnum::textGeneration(),
+                (string) CapabilityEnum::chatHistory(),
+                (string) CapabilityEnum::textToSpeechConversion(),
+            ],
+            array_map('strval', $model->getSupportedCapabilities())
+        );
+
+        $options = [];
+        foreach ($model->getSupportedOptions() as $option) {
+            $options[(string) $option->getName()] = $option;
+        }
+        $this->assertTrue($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::audio()]));
+        $this->assertTrue($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::text()]));
+        $this->assertTrue($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('audio/wav'));
+        $this->assertFalse($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('audio/mpeg'));
+        $this->assertTrue($options[(string) OptionEnum::outputFileType()]->isSupportedValue(FileTypeEnum::inline()));
+        $this->assertArrayHasKey((string) OptionEnum::outputSpeechVoice(), $options);
+    }
+
+    public function testMusicModelsDoNotAdvertiseTextToSpeechConversion(): void
+    {
+        // Lyria outputs audio, but generates music rather than speech, and does not take audio input.
+        $model = $this->findModel($this->parseFixture(), 'google/lyria-3-clip-preview');
+
+        foreach ($model->getSupportedCapabilities() as $capability) {
+            $this->assertFalse($capability->isTextToSpeechConversion());
+        }
+        $this->assertNotContains((string) OptionEnum::outputSpeechVoice(), $this->getOptionNames($model));
     }
 
     public function testModelsWithoutImagesEndpointDoNotAdvertiseImageGeneration(): void
