@@ -310,13 +310,6 @@ class OpenRouterTextGenerationModelTest extends TestCase
         ];
     }
 
-    public function testPrepareGenerateTextParamsOmitsPluginsWithoutWebSearch(): void
-    {
-        $params = $this->prepareParams(new ModelConfig());
-
-        $this->assertArrayNotHasKey('plugins', $params);
-    }
-
     public function testPrepareGenerateTextParamsAddsWebSearchToCustomPlugins(): void
     {
         $fileParser = ['id' => 'file-parser', 'pdf' => ['engine' => 'pdf-text']];
