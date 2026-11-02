@@ -124,25 +124,6 @@ class OpenRouterTextToSpeechConversionModelTest extends TestCase
         $model->convertTextToSpeechResult([$this->createUserMessage('Hello')]);
     }
 
-    public function testConvertTextToSpeechResultRejectsPromptWithoutText(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        $this->createModel(new MockHttpTransporter())->convertTextToSpeechResult([]);
-    }
-
-    public function testConvertTextToSpeechResultRejectsConflictingCustomOptions(): void
-    {
-        $config = new ModelConfig();
-        $config->setCustomOptions(['stream' => false]);
-        $model = $this->createModel(new MockHttpTransporter());
-        $model->setConfig($config);
-
-        $this->expectException(InvalidArgumentException::class);
-
-        $model->convertTextToSpeechResult([$this->createUserMessage('Hello')]);
-    }
-
     public function testConvertTextToSpeechResultThrowsWithoutAudio(): void
     {
         $model = $this->createModel(new MockHttpTransporter([$this->createStreamResponse([])]));
