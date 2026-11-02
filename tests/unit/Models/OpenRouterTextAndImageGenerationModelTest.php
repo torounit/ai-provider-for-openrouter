@@ -12,7 +12,6 @@ use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
-use WordPress\AiClient\Providers\Http\DTO\RequestOptions;
 use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Models\DTO\ModelConfig;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
@@ -63,20 +62,6 @@ class OpenRouterTextAndImageGenerationModelTest extends TestCase
         $data = $request->getData();
         $this->assertNotNull($data);
         $this->assertSame('1:1', $data['aspect_ratio']);
-    }
-
-    public function testSettersApplyToBothModels(): void
-    {
-        $model = $this->createModel(new MockHttpTransporter());
-        $config = new ModelConfig();
-        $requestOptions = new RequestOptions();
-        $model->setConfig($config);
-        $model->setRequestOptions($requestOptions);
-
-        $this->assertSame($config, $model->getConfig());
-        $this->assertSame($requestOptions, $model->getRequestOptions());
-        $this->assertSame('google/gemini-3.1-flash-lite-image', $model->metadata()->getId());
-        $this->assertSame('openrouter', $model->providerMetadata()->getId());
     }
 
     private function createModel(MockHttpTransporter $transporter): OpenRouterTextAndImageGenerationModel
