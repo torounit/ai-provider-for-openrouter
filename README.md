@@ -52,6 +52,14 @@ $text = wp_ai_client_prompt('Hello, world!')
     ->generate_text();
 ```
 
+Embeddings are generated through the WordPress embedding API. Only text inputs are supported, and only OpenAI's `text-embedding-3-*` models accept `using_dimensions()`:
+
+```php
+$embeddings = wp_ai_client_embedding(['Hello', 'World'])
+    ->using_provider_model('openrouter', 'nvidia/nemotron-3.5-embed-1b:free')
+    ->generate_embeddings();
+```
+
 ### As a Standalone Package
 
 ```php

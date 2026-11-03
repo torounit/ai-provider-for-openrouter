@@ -1,0 +1,77 @@
+{
+    "data": [
+        {
+            "id": "nvidia/nemotron-3.5-embed-1b:free",
+            "name": "NVIDIA: Nemotron 3.5 Embed 1B (free)",
+            "architecture": {
+                "modality": "text+image->embeddings",
+                "input_modalities": [
+                    "text",
+                    "image"
+                ],
+                "output_modalities": [
+                    "embeddings"
+                ],
+                "tokenizer": "Other",
+                "instruct_type": null
+            },
+            "supported_parameters": [],
+            "endpoints": [
+                "/api/v1/embeddings"
+            ],
+            "pricing": {
+                "prompt": "0",
+                "completion": "0"
+            },
+            "context_length": 32768
+        },
+        {
+            "id": "openai/text-embedding-ada-002",
+            "name": "OpenAI: Text Embedding Ada 002",
+            "architecture": {
+                "modality": "text->embeddings",
+                "input_modalities": [
+                    "text"
+                ],
+                "output_modalities": [
+                    "embeddings"
+                ],
+                "tokenizer": "Other",
+                "instruct_type": null
+            },
+            "supported_parameters": [],
+            "endpoints": [
+                "/api/v1/embeddings"
+            ],
+            "pricing": {
+                "prompt": "0.0000001",
+                "completion": "0"
+            },
+            "context_length": 8192
+        },
+        {
+            "id": "openai/text-embedding-3-small",
+            "name": "OpenAI: Text Embedding 3 Small",
+            "architecture": {
+                "modality": "text->embeddings",
+                "input_modalities": [
+                    "text"
+                ],
+                "output_modalities": [
+                    "embeddings"
+                ],
+                "tokenizer": "Other",
+                "instruct_type": null
+            },
+            "supported_parameters": [],
+            "endpoints": [
+                "/api/v1/embeddings"
+            ],
+            "pricing": {
+                "prompt": "0.00000002",
+                "completion": "0"
+            },
+            "context_length": 8192
+        }
+    ]
+}
