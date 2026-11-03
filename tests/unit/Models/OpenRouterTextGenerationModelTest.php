@@ -12,6 +12,7 @@ use WordPress\AiClient\Common\Exception\InvalidArgumentException;
 use WordPress\AiClient\Files\DTO\File;
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
+use WordPress\AiClient\Messages\Enums\MessagePartChannelEnum;
 use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
 use WordPress\AiClient\Providers\Http\DTO\Response;
@@ -58,6 +59,199 @@ class OpenRouterTextGenerationModelTest extends TestCase
         $data = $request->getData();
         $this->assertNotNull($data);
         $this->assertSame('anthropic/claude-haiku-5.5', $data['model']);
+    }
+
+    public function testGenerateTextResultParsesReasoningAsSignedThought(): void
+    {
+        $details = [
+            ['type' => 'reasoning.text', 'text' => '91 = 7 × 13.', 'format' => 'unknown', 'index' => 0],
+        ];
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning' => '91 = 7 × 13.',
+                'reasoning_details' => $details,
+            ])]),
+            'vendor/model'
+        );
+
+        $result = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')]);
+        $parts = $result->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertCount(2, $parts);
+        $this->assertTrue($parts[0]->getChannel()->isThought());
+        $this->assertSame('91 = 7 × 13.', $parts[0]->getText());
+        $this->assertSame($details, json_decode((string) $parts[0]->getThoughtSignature(), true));
+        $this->assertSame('No', $parts[1]->getText());
+        $this->assertSame('No', $result->toText());
+    }
+
+    public function testGenerateTextResultParsesReasoningWithoutDetails(): void
+    {
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning' => 'Thinking.',
+            ])]),
+            'vendor/model'
+        );
+
+        $parts = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')])
+            ->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertTrue($parts[0]->getChannel()->isThought());
+        $this->assertSame('Thinking.', $parts[0]->getText());
+        $this->assertNull($parts[0]->getThoughtSignature());
+    }
+
+    public function testGenerateTextResultKeepsEncryptedReasoningWithoutText(): void
+    {
+        $details = [
+            ['type' => 'reasoning.encrypted', 'data' => 'abc', 'id' => 'rs_1', 'format' => 'openai', 'index' => 0],
+        ];
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning' => null,
+                'reasoning_details' => $details,
+            ])]),
+            'vendor/model'
+        );
+
+        $parts = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')])
+            ->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertTrue($parts[0]->getChannel()->isThought());
+        $this->assertSame($details, json_decode((string) $parts[0]->getThoughtSignature(), true));
+    }
+
+    public function testGenerateTextResultDoesNotDuplicateReasoningContent(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'format' => 'unknown', 'index' => 0]];
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning_content' => 'Thinking.',
+                'reasoning' => 'Thinking.',
+                'reasoning_details' => $details,
+            ])]),
+            'vendor/model'
+        );
+
+        $parts = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')])
+            ->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertCount(2, $parts);
+        $this->assertTrue($parts[0]->getChannel()->isThought());
+        $this->assertSame('Thinking.', $parts[0]->getText());
+        $this->assertSame($details, json_decode((string) $parts[0]->getThoughtSignature(), true));
+    }
+
+    public function testGenerateTextResultUsesReasoningDetailsTextWithoutReasoning(): void
+    {
+        $model = $this->createModel(
+            new MockHttpTransporter([$this->createChatResponse([
+                'role' => 'assistant',
+                'content' => 'No',
+                'reasoning' => null,
+                'reasoning_details' => [
+                    ['type' => 'reasoning.summary', 'summary' => 'Checked divisors.', 'index' => 0],
+                    ['type' => 'reasoning.text', 'text' => '7 × 13 = 91.', 'index' => 1],
+                    ['type' => 'reasoning.encrypted', 'data' => 'abc', 'index' => 2],
+                ],
+            ])]),
+            'vendor/model'
+        );
+
+        $parts = $model->generateTextResult([$this->createUserMessage('Is 91 prime?')])
+            ->getCandidates()[0]->getMessage()->getParts();
+
+        $this->assertSame("Checked divisors.\n7 × 13 = 91.", $parts[0]->getText());
+    }
+
+    public function testPrepareGenerateTextParamsSendsReasoningDetailsBack(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'format' => 'unknown', 'index' => 0]];
+        $config = new ModelConfig();
+        $config->setSystemInstruction('Be terse.');
+
+        $params = $this->prepareParamsForMessages($config, [
+            $this->createUserMessage('Is 91 prime?'),
+            new Message(MessageRoleEnum::model(), [
+                new MessagePart('Thinking.', MessagePartChannelEnum::thought(), (string) json_encode($details)),
+                new MessagePart('No'),
+            ]),
+            $this->createUserMessage('Why?'),
+        ]);
+
+        // The system instruction comes first.
+        $this->assertSame('system', $params['messages'][0]['role']);
+        $this->assertArrayNotHasKey('reasoning_details', $params['messages'][1]);
+        $this->assertSame('assistant', $params['messages'][2]['role']);
+        $this->assertSame($details, $params['messages'][2]['reasoning_details']);
+        $this->assertSame([['type' => 'text', 'text' => 'No']], $params['messages'][2]['content']);
+        $this->assertArrayNotHasKey('reasoning_details', $params['messages'][3]);
+    }
+
+    public function testPrepareGenerateTextParamsSendsReasoningDetailsOnlyForModelMessages(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'index' => 0]];
+
+        $params = $this->prepareParamsForMessages(new ModelConfig(), [
+            new Message(MessageRoleEnum::user(), [
+                new MessagePart('Thinking.', MessagePartChannelEnum::thought(), (string) json_encode($details)),
+                new MessagePart('Hi'),
+            ]),
+        ]);
+
+        $this->assertArrayNotHasKey('reasoning_details', $params['messages'][0]);
+    }
+
+    public function testPrepareGenerateTextParamsSkipsEntriesThatAreNotReasoningDetails(): void
+    {
+        $details = [['type' => 'reasoning.text', 'text' => 'Thinking.', 'index' => 0]];
+        $signature = (string) json_encode(array_merge($details, [1, ['type' => 'other'], ['text' => 'x']]));
+
+        $params = $this->prepareParamsForMessages(new ModelConfig(), [
+            new Message(MessageRoleEnum::model(), [
+                new MessagePart('Thinking.', MessagePartChannelEnum::thought(), $signature),
+                new MessagePart('No'),
+            ]),
+        ]);
+
+        $this->assertSame($details, $params['messages'][0]['reasoning_details']);
+    }
+
+    /**
+     * @dataProvider dataUnusableThoughtSignatures
+     */
+    public function testPrepareGenerateTextParamsIgnoresUnusableThoughtSignatures(?string $signature): void
+    {
+        $params = $this->prepareParamsForMessages(new ModelConfig(), [
+            new Message(MessageRoleEnum::model(), [
+                new MessagePart('Thinking.', MessagePartChannelEnum::thought(), $signature),
+                new MessagePart('No'),
+            ]),
+        ]);
+
+        $this->assertArrayNotHasKey('reasoning_details', $params['messages'][0]);
+    }
+
+    /**
+     * @return array<string, array{0: string|null}>
+     */
+    public function dataUnusableThoughtSignatures(): array
+    {
+        return [
+            'none' => [null],
+            'invalid json' => ['{not json'],
+            'not a list' => ['{"id":"rs_1"}'],
+            'not reasoning details' => ['[1,2]'],
+        ];
     }
 
     public function testPrepareGenerateTextParamsIncludesTopK(): void
@@ -231,6 +425,19 @@ class OpenRouterTextGenerationModelTest extends TestCase
      */
     private function prepareParams(ModelConfig $config, ?array $parts = null): array
     {
+        $message = $parts !== null
+            ? new Message(MessageRoleEnum::user(), $parts)
+            : $this->createUserMessage('Hi');
+
+        return $this->prepareParamsForMessages($config, [$message]);
+    }
+
+    /**
+     * @param list<Message> $messages
+     * @return array<string, mixed>
+     */
+    private function prepareParamsForMessages(ModelConfig $config, array $messages): array
+    {
         $model = new class (
             new ModelMetadata('vendor/model', 'Model', [CapabilityEnum::textGeneration()], []),
             OpenRouterProvider::metadata()
@@ -246,11 +453,18 @@ class OpenRouterTextGenerationModelTest extends TestCase
         };
         $model->setConfig($config);
 
-        $message = $parts !== null
-            ? new Message(MessageRoleEnum::user(), $parts)
-            : $this->createUserMessage('Hi');
+        return $model->exposePrepareGenerateTextParams($messages);
+    }
 
-        return $model->exposePrepareGenerateTextParams([$message]);
+    /**
+     * @param array<string, mixed> $message
+     */
+    private function createChatResponse(array $message): Response
+    {
+        return new Response(200, [], (string) json_encode([
+            'id' => 'gen-1',
+            'choices' => [['index' => 0, 'finish_reason' => 'stop', 'message' => $message]],
+        ]));
     }
 
     private function createModel(MockHttpTransporter $transporter, string $modelId): OpenRouterTextGenerationModel
