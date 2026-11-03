@@ -3,7 +3,11 @@
 /**
  * PSR-4 autoloader for the AI Provider for OpenRouter package.
  *
+ * Ported from the AI Provider for OpenAI, with only the namespace changed.
+ *
  * @since 0.1.0
+ *
+ * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/autoload.php
  *
  * @package ToroUnit\OpenRouterAiProvider
  */

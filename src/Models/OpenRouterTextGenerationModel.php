@@ -67,9 +67,12 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      * be wrapped in an object with a name. Strict mode is not enabled, since it only accepts schemas that meet
      * additional requirements, which vary between the providers that OpenRouter routes to.
      *
+     * The schema name matches the AI Provider for OpenAI.
+     *
      * @since 0.1.0
      *
      * @link https://openrouter.ai/docs/guides/features/structured-outputs
+     * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Models/OpenAiTextGenerationModel.php
      */
     protected function prepareResponseFormatParam(?array $outputSchema): array
     {

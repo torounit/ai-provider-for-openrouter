@@ -57,7 +57,12 @@ class OpenRouterProvider extends AbstractApiProvider
     /**
      * {@inheritDoc}
      *
+     * Based on the AI Provider for OpenAI, without its AI Client version checks, and with the logo only passed
+     * when the file exists.
+     *
      * @since 0.1.0
+     *
+     * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Provider/OpenAiProvider.php
      */
     protected static function createProviderMetadata(): ProviderMetadata
     {

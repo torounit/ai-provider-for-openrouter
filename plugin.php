@@ -41,7 +41,11 @@ require_once __DIR__ . '/src/autoload.php';
 /**
  * Registers the AI Provider for OpenRouter with the AI Client.
  *
+ * Ported from the AI Provider for OpenAI, except that the provider ID is checked instead of the class name.
+ *
  * @since 0.1.0
+ *
+ * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/plugin.php
  *
  * @return void
  */
