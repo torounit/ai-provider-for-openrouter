@@ -21,7 +21,12 @@ use WordPress\AiClient\Results\DTO\TokenUsage;
 /**
  * Class for an OpenRouter embedding generation model using the OpenAI compatible Embeddings API.
  *
+ * Ported from the AI Provider for OpenAI, except that the characters to trim are passed explicitly, and the
+ * order of the embeddings is restored from their index.
+ *
  * @since 0.1.0
+ *
+ * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Models/OpenAiEmbeddingGenerationModel.php
  *
  * @phpstan-type EmbeddingData array{embedding?: list<float|int>, index?: int}
  * @phpstan-type UsageData array{prompt_tokens?: int, total_tokens?: int}
