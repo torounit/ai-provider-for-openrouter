@@ -248,7 +248,11 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      * Anthropic's own model IDs use dashes (e.g. `claude-opus-4-7`), while OpenRouter uses dots
      * (e.g. `claude-opus-4.7`), so the dashed form is added to match the Anthropic provider.
      *
+     * Based on the Vercel AI Gateway provider, which adds the same aliases.
+     *
      * @since 0.1.0
+     *
+     * @link https://github.com/vercel-labs/ai-gateway-provider-php/blob/66cde97/src/Metadata/AiGatewayModelMetadataDirectory.php
      *
      * @param string $openRouterModelId OpenRouter's model ID.
      * @param string $modelId           The exposed model ID.
