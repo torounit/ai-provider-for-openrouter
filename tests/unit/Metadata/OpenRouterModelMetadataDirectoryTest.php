@@ -67,6 +67,7 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
                 OptionEnum::functionDeclarations(),
                 OptionEnum::outputSchema(),
                 OptionEnum::outputMimeType(),
+                OptionEnum::webSearch(),
                 OptionEnum::customOptions(),
             ] as $expectedOption
         ) {
@@ -87,6 +88,13 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
 
         $this->assertContains((string) OptionEnum::maxTokens(), $this->getOptionNames($models['openai/codex']));
         $this->assertNotContains((string) OptionEnum::maxTokens(), $this->getOptionNames($models['vendor/no-limit']));
+    }
+
+    public function testAdvertisesWebSearchForAllModels(): void
+    {
+        $models = $this->parseResponse([['id' => 'vendor/model', 'supported_parameters' => []]]);
+
+        $this->assertContains((string) OptionEnum::webSearch(), $this->getOptionNames($models['vendor/model']));
     }
 
     public function testAdvertisesInputModalityCombinations(): void

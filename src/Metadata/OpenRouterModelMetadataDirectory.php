@@ -151,6 +151,8 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         if (in_array('response_format', $supportedParameters, true)) {
             $options[] = new SupportedOption(OptionEnum::outputMimeType(), ['text/plain', 'application/json']);
         }
+        // The web search plugin works with any model.
+        $options[] = new SupportedOption(OptionEnum::webSearch());
         $options[] = new SupportedOption(OptionEnum::customOptions());
         $options[] = new SupportedOption(
             OptionEnum::inputModalities(),

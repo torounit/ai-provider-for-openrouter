@@ -19,6 +19,7 @@ use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Models\DTO\ModelConfig;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 use WordPress\AiClient\Providers\Models\Enums\CapabilityEnum;
+use WordPress\AiClient\Tools\DTO\WebSearch;
 
 /**
  * @covers \ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel
@@ -252,6 +253,84 @@ class OpenRouterTextGenerationModelTest extends TestCase
             'not a list' => ['{"id":"rs_1"}'],
             'not reasoning details' => ['[1,2]'],
         ];
+    }
+
+    public function testPrepareGenerateTextParamsEnablesWebSearchPlugin(): void
+    {
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch());
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame([['id' => 'web']], $params['plugins']);
+    }
+
+    /**
+     * @dataProvider dataWebSearchDomains
+     *
+     * @param list<string> $allowedDomains
+     * @param list<string> $disallowedDomains
+     * @param array<string, mixed> $expectedPlugin
+     */
+    public function testPrepareGenerateTextParamsPassesWebSearchDomains(
+        array $allowedDomains,
+        array $disallowedDomains,
+        array $expectedPlugin
+    ): void {
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch($allowedDomains, $disallowedDomains));
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame([$expectedPlugin], $params['plugins']);
+    }
+
+    /**
+     * @return array<string, array{0: list<string>, 1: list<string>, 2: array<string, mixed>}>
+     */
+    public function dataWebSearchDomains(): array
+    {
+        return [
+            'allowed' => [
+                ['wordpress.org', '*.wordpress.com'],
+                [],
+                ['id' => 'web', 'include_domains' => ['wordpress.org', '*.wordpress.com']],
+            ],
+            'disallowed' => [
+                [],
+                ['example.com'],
+                ['id' => 'web', 'exclude_domains' => ['example.com']],
+            ],
+            // Most search engines do not accept both, and the allowed domains already restrict the results.
+            'both' => [
+                ['wordpress.org'],
+                ['example.com'],
+                ['id' => 'web', 'include_domains' => ['wordpress.org']],
+            ],
+        ];
+    }
+
+    public function testPrepareGenerateTextParamsAddsWebSearchToCustomPlugins(): void
+    {
+        $fileParser = ['id' => 'file-parser', 'pdf' => ['engine' => 'pdf-text']];
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch());
+        $config->setCustomOptions(['plugins' => [$fileParser]]);
+
+        $params = $this->prepareParams($config);
+
+        $this->assertSame([$fileParser, ['id' => 'web']], $params['plugins']);
+    }
+
+    public function testPrepareGenerateTextParamsRejectsInvalidCustomPlugins(): void
+    {
+        $config = new ModelConfig();
+        $config->setWebSearch(new WebSearch());
+        $config->setCustomOptions(['plugins' => 'web']);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->prepareParams($config);
     }
 
     public function testPrepareGenerateTextParamsIncludesTopK(): void

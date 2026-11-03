@@ -13,6 +13,7 @@ use WordPress\AiClient\Messages\Enums\MessagePartChannelEnum;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\Enums\HttpMethodEnum;
 use WordPress\AiClient\Providers\OpenAiCompatibleImplementation\AbstractOpenAiCompatibleTextGenerationModel;
+use WordPress\AiClient\Tools\DTO\WebSearch;
 
 /**
  * Class for an OpenRouter text generation model using the OpenAI compatible Chat Completions API.
@@ -61,7 +62,46 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
             $params['top_k'] = $topK;
         }
 
+        $webSearch = $this->getConfig()->getWebSearch();
+        if ($webSearch !== null) {
+            // Other plugins passed as a custom option are kept, so that they can be combined with web search.
+            $plugins = $params['plugins'] ?? [];
+            if (!is_array($plugins) || !array_is_list($plugins)) {
+                throw new InvalidArgumentException(
+                    'The custom option "plugins" must be a list to be combined with web search.'
+                );
+            }
+            $plugins[] = $this->prepareWebSearchPlugin($webSearch);
+            $params['plugins'] = $plugins;
+        }
+
         return $params;
+    }
+
+    /**
+     * Returns the web search plugin configuration, which enables web search for any model.
+     *
+     * @since 0.1.0
+     *
+     * @link https://openrouter.ai/docs/guides/features/web-search
+     *
+     * @param WebSearch $webSearch The web search configuration.
+     * @return array<string, mixed> The plugin configuration.
+     */
+    private function prepareWebSearchPlugin(WebSearch $webSearch): array
+    {
+        $plugin = ['id' => 'web'];
+
+        // Most search engines do not accept both filters, and the allowed domains already restrict the results.
+        $allowedDomains = $webSearch->getAllowedDomains();
+        $disallowedDomains = $webSearch->getDisallowedDomains();
+        if ($allowedDomains) {
+            $plugin['include_domains'] = $allowedDomains;
+        } elseif ($disallowedDomains) {
+            $plugin['exclude_domains'] = $disallowedDomains;
+        }
+
+        return $plugin;
     }
 
     /**
