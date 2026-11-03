@@ -70,9 +70,12 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      * Sends the reasoning details from previous model messages back, which some models require to continue their
      * reasoning, e.g. across function calls.
      *
+     * Based on the AI Provider for OpenAI, which sends reasoning items back the same way.
+     *
      * @since 0.1.0
      *
      * @link https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#preserving-reasoning
+     * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Models/OpenAiTextGenerationModel.php
      */
     protected function prepareMessagesParam(array $messages, ?string $systemInstruction = null): array
     {
@@ -137,7 +140,11 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      * Parses OpenRouter's reasoning into a thought part. The reasoning details are stored as its thought signature,
      * so that they can be sent back in subsequent requests.
      *
+     * Based on the AI Provider for OpenAI, which keeps reasoning items as thought signatures the same way.
+     *
      * @since 0.1.0
+     *
+     * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Models/OpenAiTextGenerationModel.php
      */
     protected function parseResponseChoiceMessageParts(array $messageData, int $index): array
     {
