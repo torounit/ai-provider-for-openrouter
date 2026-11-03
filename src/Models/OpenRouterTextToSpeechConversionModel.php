@@ -146,7 +146,11 @@ class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implem
     /**
      * Returns the text to convert to speech from the given prompt.
      *
+     * Ported from the AI Provider for OpenAI.
+     *
      * @since 0.1.0
+     *
+     * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Models/OpenAiTextToSpeechConversionModel.php
      *
      * @param list<Message> $prompt The prompt.
      * @return string The text of all message parts, one per line.

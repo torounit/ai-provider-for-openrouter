@@ -23,7 +23,11 @@ use WordPress\AiClient\Results\DTO\GenerativeAiResult;
  * OpenRouter uses the same model ID for both, so this delegates text generation to a text generation model and the
  * other capability to a separate model, keeping the configuration of both in sync.
  *
+ * Based on the Vercel AI Gateway provider's combined text and image model.
+ *
  * @since 0.1.0
+ *
+ * @link https://github.com/vercel-labs/ai-gateway-provider-php/blob/66cde97/src/Models/AiGatewayTextAndImageGenerationModel.php
  *
  * @template TMediaModel of AbstractApiBasedModel
  */
