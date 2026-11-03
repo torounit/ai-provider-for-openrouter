@@ -217,7 +217,11 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
      * The vendor prefix is removed, so that the model IDs match those of other providers. OpenRouter's own models
      * keep it, and so do models whose ID without vendor is assigned to another model.
      *
+     * Based on the Vercel AI Gateway provider, which removes the vendor prefix the same way.
+     *
      * @since 0.1.0
+     *
+     * @link https://github.com/vercel-labs/ai-gateway-provider-php/blob/66cde97/src/Metadata/AiGatewayModelMetadataDirectory.php
      *
      * @param string $openRouterModelId OpenRouter's model ID.
      * @return string The model ID to expose.

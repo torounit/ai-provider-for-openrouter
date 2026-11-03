@@ -170,7 +170,11 @@ class OpenRouterProvider extends AbstractApiProvider
      * By default, model IDs are exposed without it (e.g. `claude-opus-4.7`), so that they match the model IDs of
      * other providers. Set the environment variable or constant to `true` to expose `anthropic/claude-opus-4.7`.
      *
+     * Based on the Vercel AI Gateway provider's `AI_GATEWAY_USE_FULL_MODEL_IDS`, also accepting a constant.
+     *
      * @since 0.1.0
+     *
+     * @link https://github.com/vercel-labs/ai-gateway-provider-php/blob/66cde97/src/Provider/AiGatewayProvider.php
      *
      * @return bool True to expose OpenRouter's model IDs.
      */
