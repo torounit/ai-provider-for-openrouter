@@ -1,0 +1,70 @@
+{
+    "name": "torounit/ai-provider-for-openrouter",
+    "description": "AI Provider for OpenRouter for the PHP AI Client SDK. Works as both a Composer package and WordPress plugin.",
+    "license": "GPL-2.0-or-later",
+    "keywords": [
+        "ai",
+        "openrouter",
+        "llm",
+        "wordpress"
+    ],
+    "authors": [
+        {
+            "name": "Toro_Unit",
+            "homepage": "https://torounit.com/"
+        }
+    ],
+    "homepage": "https://github.com/torounit/ai-provider-for-openrouter",
+    "support": {
+        "issues": "https://github.com/torounit/ai-provider-for-openrouter/issues",
+        "source": "https://github.com/torounit/ai-provider-for-openrouter"
+    },
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpcompatibility/php-compatibility": "dev-develop",
+        "phpstan/phpstan": "~2.1",
+        "phpunit/phpunit": "^9.6",
+        "slevomat/coding-standard": "^8.20",
+        "squizlabs/php_codesniffer": "^3.7 || ^4.0",
+        "wordpress/php-ai-client": "^1.5"
+    },
+    "suggest": {
+        "wordpress/php-ai-client": "Required. The core PHP AI Client SDK that this provider extends."
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "ToroUnit\\OpenRouterAiProvider\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ToroUnit\\OpenRouterAiProvider\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "php-http/discovery": true
+        },
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "8.3"
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "lint": [
+            "@phpcs",
+            "@phpstan"
+        ],
+        "phpcbf": "phpcbf",
+        "phpcs": "phpcs",
+        "phpstan": "phpstan analyze --memory-limit=256M",
+        "test": "phpunit"
+    }
+}
