@@ -117,6 +117,8 @@ Image, audio, and file inputs (PDFs and other documents or text files) can be se
 
 The provider uses the `OPENROUTER_API_KEY` environment variable or PHP constant for authentication. In WordPress, the API key can also be entered in **Settings > Connectors**.
 
+To make sure that no costs are incurred, set the `OPENROUTER_FREE_MODELS_ONLY` environment variable or constant to `true`. Only `:free` models and `openrouter/free` are then listed, so paid models are never used, even when they are preferred. Web search and plugins cannot be used in this mode, since they are charged even with free models, and neither can fallback models that are not free. Image generation and text to speech are only available if a free model supports them, which none does at the moment.
+
 ## Development
 
 ```bash

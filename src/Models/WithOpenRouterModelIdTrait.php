@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ToroUnit\OpenRouterAiProvider\Models;
 
+use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
+use WordPress\AiClient\Common\Exception\InvalidArgumentException;
 use WordPress\AiClient\Providers\DTO\ProviderMetadata;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 
@@ -50,9 +52,20 @@ trait WithOpenRouterModelIdTrait
      * @since 0.1.0
      *
      * @return string The model ID.
+     *
+     * @throws InvalidArgumentException If only free models may be used and the model is not free.
      */
     protected function getOpenRouterModelId(): string
     {
-        return $this->openRouterModelId ?? $this->metadata()->getId();
+        $openRouterModelId = $this->openRouterModelId ?? $this->metadata()->getId();
+
+        // Models can be used without the models list, e.g. when a model is set explicitly.
+        if (OpenRouterProvider::freeModelsOnly() && !OpenRouterProvider::isFreeModelId($openRouterModelId)) {
+            throw new InvalidArgumentException(
+                sprintf('The model "%s" is not free, and only free models may be used.', $openRouterModelId)
+            );
+        }
+
+        return $openRouterModelId;
     }
 }

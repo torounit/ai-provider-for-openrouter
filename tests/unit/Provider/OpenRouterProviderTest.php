@@ -191,7 +191,7 @@ class OpenRouterProviderTest extends TestCase
     }
 
     /**
-     * @dataProvider dataFullModelIdsSettings
+     * @dataProvider dataBooleanSettings
      */
     public function testUsesFullModelIdsWhenEnabled(string $value, bool $expected): void
     {
@@ -211,9 +211,29 @@ class OpenRouterProviderTest extends TestCase
     }
 
     /**
+     * @dataProvider dataBooleanSettings
+     */
+    public function testUsesFreeModelsOnlyWhenEnabled(string $value, bool $expected): void
+    {
+        putenv('OPENROUTER_FREE_MODELS_ONLY=' . $value);
+        try {
+            $provider = new class extends OpenRouterProvider {
+                public static function exposeFreeModelsOnly(): bool
+                {
+                    return static::freeModelsOnly();
+                }
+            };
+
+            $this->assertSame($expected, $provider::exposeFreeModelsOnly());
+        } finally {
+            putenv('OPENROUTER_FREE_MODELS_ONLY');
+        }
+    }
+
+    /**
      * @return array<string, array{0: string, 1: bool}>
      */
-    public function dataFullModelIdsSettings(): array
+    public function dataBooleanSettings(): array
     {
         return [
             'true' => ['true', true],

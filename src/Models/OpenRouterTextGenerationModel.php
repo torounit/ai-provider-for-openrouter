@@ -65,6 +65,10 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
             $params['top_k'] = $topK;
         }
 
+        if (OpenRouterProvider::freeModelsOnly()) {
+            $this->validateFreeRequest($params);
+        }
+
         $webSearch = $this->getConfig()->getWebSearch();
         if ($webSearch !== null) {
             // Other plugins passed as a custom option are kept, so that they can be combined with web search.
@@ -79,6 +83,34 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
         }
 
         return $params;
+    }
+
+    /**
+     * Checks that a request does not use charged features, when only free models may be used.
+     *
+     * @since 0.1.0
+     *
+     * @param array<string, mixed> $params The parameters for the API request.
+     *
+     * @throws InvalidArgumentException If the request uses a charged feature.
+     */
+    private function validateFreeRequest(array $params): void
+    {
+        // Web search and some plugins are charged even with free models.
+        if ($this->getConfig()->getWebSearch() !== null || isset($params['plugins'])) {
+            throw new InvalidArgumentException(
+                'Web search and plugins cannot be used, since only free models may be used.'
+            );
+        }
+
+        $fallbackModels = $params['models'] ?? [];
+        foreach (is_array($fallbackModels) ? $fallbackModels : [$fallbackModels] as $fallbackModel) {
+            if (!is_string($fallbackModel) || !OpenRouterProvider::isFreeModelId($fallbackModel)) {
+                throw new InvalidArgumentException(
+                    'The fallback models must be free, since only free models may be used.'
+                );
+            }
+        }
     }
 
     /**

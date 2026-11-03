@@ -119,6 +119,26 @@ class OpenRouterEmbeddingGenerationModelTest extends TestCase
         $this->assertSame('openai/text-embedding-3-small', $data['model']);
     }
 
+    public function testRejectsPaidModelInFreeModelsOnlyMode(): void
+    {
+        putenv('OPENROUTER_FREE_MODELS_ONLY=true');
+        try {
+            $model = new OpenRouterEmbeddingGenerationModel(
+                new ModelMetadata('text-embedding-3-small', 'Small', [CapabilityEnum::embeddingGeneration()], []),
+                OpenRouterProvider::metadata(),
+                'openai/text-embedding-3-small'
+            );
+            $model->setHttpTransporter(new MockHttpTransporter());
+            $model->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+
+            $this->expectException(InvalidArgumentException::class);
+
+            $model->generateEmbeddingResult([new MessagePart('Hello')]);
+        } finally {
+            putenv('OPENROUTER_FREE_MODELS_ONLY');
+        }
+    }
+
     public function testRejectsEmptyInput(): void
     {
         $this->expectException(InvalidArgumentException::class);
