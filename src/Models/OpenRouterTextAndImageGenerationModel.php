@@ -23,7 +23,11 @@ use WordPress\AiClient\Results\DTO\GenerativeAiResult;
  * OpenRouter uses the same model ID for both, so this delegates text generation to the chat completions API and
  * image generation to the images API.
  *
+ * Based on the Vercel AI Gateway provider, except that images are generated through the images API.
+ *
  * @since 0.1.0
+ *
+ * @link https://github.com/vercel-labs/ai-gateway-provider-php/blob/66cde97/src/Models/AiGatewayTextAndImageGenerationModel.php
  */
 class OpenRouterTextAndImageGenerationModel implements
     ApiBasedModelInterface,
