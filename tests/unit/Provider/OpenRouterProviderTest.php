@@ -9,6 +9,7 @@ use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndImageGenerationModel;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndSpeechGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProvider;
 use ToroUnit\OpenRouterAiProvider\Provider\OpenRouterProviderAvailability;
@@ -110,12 +111,30 @@ class OpenRouterProviderTest extends TestCase
         $this->assertInstanceOf(OpenRouterImageGenerationModel::class, $model);
     }
 
+    public function testCreatesTextAndSpeechGenerationModel(): void
+    {
+        $model = $this->createModel(
+            new ModelMetadata(
+                'openai/gpt-audio-mini',
+                'GPT Audio Mini',
+                [
+                    CapabilityEnum::textGeneration(),
+                    CapabilityEnum::chatHistory(),
+                    CapabilityEnum::textToSpeechConversion(),
+                ],
+                []
+            )
+        );
+
+        $this->assertInstanceOf(OpenRouterTextAndSpeechGenerationModel::class, $model);
+    }
+
     public function testThrowsForUnsupportedCapabilities(): void
     {
         $this->expectException(RuntimeException::class);
 
         $this->createModel(
-            new ModelMetadata('vendor/speech', 'Speech', [CapabilityEnum::textToSpeechConversion()], [])
+            new ModelMetadata('vendor/music', 'Music', [CapabilityEnum::musicGeneration()], [])
         );
     }
 

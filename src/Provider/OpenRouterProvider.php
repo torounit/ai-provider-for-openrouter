@@ -8,6 +8,7 @@ use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndImageGenerationModel;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndSpeechGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use WordPress\AiClient\Common\Exception\RuntimeException;
 use WordPress\AiClient\Providers\ApiBasedImplementation\AbstractApiProvider;
@@ -49,12 +50,16 @@ class OpenRouterProvider extends AbstractApiProvider
 
         $supportsTextGeneration = false;
         $supportsImageGeneration = false;
+        $supportsSpeech = false;
         foreach ($capabilities as $capability) {
             if ($capability->isTextGeneration()) {
                 $supportsTextGeneration = true;
             }
             if ($capability->isImageGeneration()) {
                 $supportsImageGeneration = true;
+            }
+            if ($capability->isTextToSpeechConversion()) {
+                $supportsSpeech = true;
             }
             if ($capability->isEmbeddingGeneration()) {
                 return new OpenRouterEmbeddingGenerationModel($modelMetadata, $providerMetadata);
@@ -63,6 +68,9 @@ class OpenRouterProvider extends AbstractApiProvider
 
         if ($supportsTextGeneration && $supportsImageGeneration) {
             return new OpenRouterTextAndImageGenerationModel($modelMetadata, $providerMetadata);
+        }
+        if ($supportsTextGeneration && $supportsSpeech) {
+            return new OpenRouterTextAndSpeechGenerationModel($modelMetadata, $providerMetadata);
         }
         if ($supportsTextGeneration) {
             return new OpenRouterTextGenerationModel($modelMetadata, $providerMetadata);
@@ -88,11 +96,11 @@ class OpenRouterProvider extends AbstractApiProvider
      */
     protected static function createProviderMetadata(): ProviderMetadata
     {
-        $description = 'Text, image, and embedding generation with hundreds of models through a single API key.';
+        $description = 'Text, image, speech, and embedding generation with hundreds of models through one API key.';
         // For WordPress, we should translate the description.
         if (function_exists('__')) {
             $translatedDescription = __(
-                'Text, image, and embedding generation with hundreds of models through a single API key.',
+                'Text, image, speech, and embedding generation with hundreds of models through one API key.',
                 'ai-provider-for-openrouter'
             );
             if (is_string($translatedDescription)) {

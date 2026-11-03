@@ -343,6 +343,87 @@
                 "completion": "0"
             },
             "context_length": 200000
+        },
+        {
+            "id": "openai/gpt-audio-mini",
+            "name": "OpenAI: GPT Audio Mini",
+            "architecture": {
+                "modality": "text+audio->text+audio",
+                "input_modalities": [
+                    "text",
+                    "audio"
+                ],
+                "output_modalities": [
+                    "text",
+                    "audio"
+                ],
+                "tokenizer": "GPT",
+                "instruct_type": null
+            },
+            "supported_parameters": [
+                "frequency_penalty",
+                "logit_bias",
+                "logprobs",
+                "max_tokens",
+                "presence_penalty",
+                "response_format",
+                "seed",
+                "stop",
+                "structured_outputs",
+                "temperature",
+                "tool_choice",
+                "tools",
+                "top_logprobs",
+                "top_p"
+            ],
+            "endpoints": [
+                "/api/v1/chat/completions",
+                "/api/v1/completions",
+                "/api/v1/messages",
+                "/api/v1/responses"
+            ],
+            "pricing": {
+                "prompt": "0.0000006",
+                "completion": "0.0000024",
+                "audio": "0.0000006",
+                "audio_output": "0.0000024"
+            },
+            "context_length": 128000
+        },
+        {
+            "id": "google/lyria-3-clip-preview",
+            "name": "Google: Lyria 3 Clip Preview",
+            "architecture": {
+                "modality": "text+image->text+audio",
+                "input_modalities": [
+                    "text",
+                    "image"
+                ],
+                "output_modalities": [
+                    "text",
+                    "audio"
+                ],
+                "tokenizer": "Other",
+                "instruct_type": null
+            },
+            "supported_parameters": [
+                "max_tokens",
+                "response_format",
+                "seed",
+                "temperature",
+                "top_p"
+            ],
+            "endpoints": [
+                "/api/v1/chat/completions",
+                "/api/v1/completions",
+                "/api/v1/messages",
+                "/api/v1/responses"
+            ],
+            "pricing": {
+                "prompt": "0",
+                "completion": "0"
+            },
+            "context_length": 1048576
         }
     ]
 }

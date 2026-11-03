@@ -61,6 +61,15 @@ $image = wp_ai_client_prompt('A red apple on a white background.')
     ->generate_image();
 ```
 
+Text to speech uses models that take and output audio, such as `openai/gpt-audio-mini`. OpenRouter only streams raw PCM audio, so the speech is returned as a WAV file:
+
+```php
+$speech = wp_ai_client_prompt('Hello from WordPress.')
+    ->using_model_preference(['openrouter', 'openai/gpt-audio-mini'])
+    ->as_output_speech_voice('nova')
+    ->convert_text_to_speech();
+```
+
 Embeddings are generated through the WordPress embedding API. Only text inputs are supported, and only OpenAI's `text-embedding-3-*` models accept `using_dimensions()`:
 
 ```php
