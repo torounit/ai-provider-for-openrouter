@@ -52,6 +52,15 @@ $text = wp_ai_client_prompt('Hello, world!')
     ->generate_text();
 ```
 
+Images are generated with models that support OpenRouter's images API, such as `google/gemini-3.1-flash-lite-image`. Use an aspect ratio or orientation instead of a size:
+
+```php
+$image = wp_ai_client_prompt('A red apple on a white background.')
+    ->using_model_preference(['openrouter', 'google/gemini-3.1-flash-lite-image'])
+    ->as_output_media_aspect_ratio('16:9')
+    ->generate_image();
+```
+
 Embeddings are generated through the WordPress embedding API. Only text inputs are supported, and only OpenAI's `text-embedding-3-*` models accept `using_dimensions()`:
 
 ```php

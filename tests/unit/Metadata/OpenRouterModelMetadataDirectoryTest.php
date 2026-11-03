@@ -7,11 +7,13 @@ namespace ToroUnit\OpenRouterAiProvider\Tests\unit\Metadata;
 use PHPUnit\Framework\TestCase;
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
+use WordPress\AiClient\Files\Enums\FileTypeEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
 use WordPress\AiClient\Providers\Http\DTO\Response;
 use WordPress\AiClient\Providers\Models\DTO\ModelMetadata;
 use WordPress\AiClient\Providers\Models\DTO\SupportedOption;
+use WordPress\AiClient\Providers\Models\Enums\CapabilityEnum;
 use WordPress\AiClient\Providers\Models\Enums\OptionEnum;
 
 /**
@@ -95,6 +97,74 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $models = $this->parseResponse([['id' => 'vendor/model', 'supported_parameters' => []]]);
 
         $this->assertContains((string) OptionEnum::webSearch(), $this->getOptionNames($models['vendor/model']));
+    }
+
+    public function testModelsWithImagesEndpointAdvertiseImageGeneration(): void
+    {
+        $model = $this->findModel($this->parseFixture(), 'google/gemini-nano-banana-2.1');
+
+        $capabilities = array_map('strval', $model->getSupportedCapabilities());
+        $this->assertSame(
+            [
+                (string) CapabilityEnum::textGeneration(),
+                (string) CapabilityEnum::chatHistory(),
+                (string) CapabilityEnum::imageGeneration(),
+            ],
+            $capabilities
+        );
+
+        $options = [];
+        foreach ($model->getSupportedOptions() as $option) {
+            $options[(string) $option->getName()] = $option;
+        }
+        $this->assertTrue($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::text()]));
+        $this->assertTrue($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::image()]));
+        $this->assertTrue($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('application/json'));
+        $this->assertTrue($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('image/webp'));
+        $this->assertTrue($options[(string) OptionEnum::outputFileType()]->isSupportedValue(FileTypeEnum::inline()));
+        $this->assertFalse($options[(string) OptionEnum::outputFileType()]->isSupportedValue(FileTypeEnum::remote()));
+        $this->assertArrayHasKey((string) OptionEnum::candidateCount(), $options);
+        $this->assertArrayHasKey((string) OptionEnum::outputMediaOrientation(), $options);
+        $this->assertArrayHasKey((string) OptionEnum::outputMediaAspectRatio(), $options);
+    }
+
+    public function testListsImageOnlyModels(): void
+    {
+        $models = $this->parseResponse([
+            [
+                'id' => 'vendor/image',
+                'name' => 'Image',
+                'architecture' => ['input_modalities' => ['text'], 'output_modalities' => ['image']],
+                'endpoints' => ['/api/v1/images'],
+            ],
+        ]);
+
+        $model = $this->findModel($models, 'vendor/image');
+        $this->assertSame(
+            [(string) CapabilityEnum::imageGeneration()],
+            array_map('strval', $model->getSupportedCapabilities())
+        );
+
+        $options = [];
+        foreach ($model->getSupportedOptions() as $option) {
+            $options[(string) $option->getName()] = $option;
+        }
+        $this->assertTrue($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::image()]));
+        $this->assertFalse($options[(string) OptionEnum::outputModalities()]->isSupportedValue([ModalityEnum::text()]));
+        $this->assertTrue($options[(string) OptionEnum::inputModalities()]->isSupportedValue([ModalityEnum::text()]));
+        $this->assertFalse($options[(string) OptionEnum::outputMimeType()]->isSupportedValue('application/json'));
+        $this->assertArrayNotHasKey((string) OptionEnum::systemInstruction(), $options);
+    }
+
+    public function testModelsWithoutImagesEndpointDoNotAdvertiseImageGeneration(): void
+    {
+        // The auto router outputs images in chat completions, but has no images endpoint.
+        $model = $this->findModel($this->parseFixture(), 'openrouter/auto');
+
+        foreach ($model->getSupportedCapabilities() as $capability) {
+            $this->assertFalse($capability->isImageGeneration());
+        }
+        $this->assertNotContains((string) OptionEnum::outputFileType(), $this->getOptionNames($model));
     }
 
     public function testAdvertisesInputModalityCombinations(): void

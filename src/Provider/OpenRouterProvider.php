@@ -6,6 +6,8 @@ namespace ToroUnit\OpenRouterAiProvider\Provider;
 
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterEmbeddingGenerationModel;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterImageGenerationModel;
+use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextAndImageGenerationModel;
 use ToroUnit\OpenRouterAiProvider\Models\OpenRouterTextGenerationModel;
 use WordPress\AiClient\Common\Exception\RuntimeException;
 use WordPress\AiClient\Providers\ApiBasedImplementation\AbstractApiProvider;
@@ -44,13 +46,29 @@ class OpenRouterProvider extends AbstractApiProvider
         ProviderMetadata $providerMetadata
     ): ModelInterface {
         $capabilities = $modelMetadata->getSupportedCapabilities();
+
+        $supportsTextGeneration = false;
+        $supportsImageGeneration = false;
         foreach ($capabilities as $capability) {
             if ($capability->isTextGeneration()) {
-                return new OpenRouterTextGenerationModel($modelMetadata, $providerMetadata);
+                $supportsTextGeneration = true;
+            }
+            if ($capability->isImageGeneration()) {
+                $supportsImageGeneration = true;
             }
             if ($capability->isEmbeddingGeneration()) {
                 return new OpenRouterEmbeddingGenerationModel($modelMetadata, $providerMetadata);
             }
+        }
+
+        if ($supportsTextGeneration && $supportsImageGeneration) {
+            return new OpenRouterTextAndImageGenerationModel($modelMetadata, $providerMetadata);
+        }
+        if ($supportsTextGeneration) {
+            return new OpenRouterTextGenerationModel($modelMetadata, $providerMetadata);
+        }
+        if ($supportsImageGeneration) {
+            return new OpenRouterImageGenerationModel($modelMetadata, $providerMetadata);
         }
 
         throw new RuntimeException(
@@ -70,11 +88,11 @@ class OpenRouterProvider extends AbstractApiProvider
      */
     protected static function createProviderMetadata(): ProviderMetadata
     {
-        $description = 'Text and embedding generation with hundreds of models through a single API key.';
+        $description = 'Text, image, and embedding generation with hundreds of models through a single API key.';
         // For WordPress, we should translate the description.
         if (function_exists('__')) {
             $translatedDescription = __(
-                'Text and embedding generation with hundreds of models through a single API key.',
+                'Text, image, and embedding generation with hundreds of models through a single API key.',
                 'ai-provider-for-openrouter'
             );
             if (is_string($translatedDescription)) {
