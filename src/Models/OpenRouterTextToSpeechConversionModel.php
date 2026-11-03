@@ -35,6 +35,8 @@ use WordPress\AiClient\Results\Enums\FinishReasonEnum;
 class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implements
     TextToSpeechConversionModelInterface
 {
+    use WithOpenRouterModelIdTrait;
+
     /**
      * The default voice, matching the AI Provider for OpenAI.
      *
@@ -110,7 +112,7 @@ class OpenRouterTextToSpeechConversionModel extends AbstractApiBasedModel implem
         $voice = $this->getConfig()->getOutputSpeechVoice();
 
         $params = [
-            'model' => $this->metadata()->getId(),
+            'model' => $this->getOpenRouterModelId(),
             'messages' => [
                 ['role' => 'system', 'content' => self::SYSTEM_INSTRUCTION],
                 [

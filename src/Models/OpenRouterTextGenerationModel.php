@@ -22,6 +22,8 @@ use WordPress\AiClient\Tools\DTO\WebSearch;
  */
 class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerationModel
 {
+    use WithOpenRouterModelIdTrait;
+
     /**
      * {@inheritDoc}
      *
@@ -50,6 +52,7 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
     protected function prepareGenerateTextParams(array $prompt): array
     {
         $params = parent::prepareGenerateTextParams($prompt);
+        $params['model'] = $this->getOpenRouterModelId();
 
         // OpenRouter supports top_k for many models, which the OpenAI compatible implementation does not send.
         $topK = $this->getConfig()->getTopK();

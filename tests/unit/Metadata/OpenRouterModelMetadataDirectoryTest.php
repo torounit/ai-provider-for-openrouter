@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace ToroUnit\OpenRouterAiProvider\Tests\unit\Metadata;
 
 use PHPUnit\Framework\TestCase;
+use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadata;
 use ToroUnit\OpenRouterAiProvider\Metadata\OpenRouterModelMetadataDirectory;
+use ToroUnit\OpenRouterAiProvider\Tests\Mocks\ArrayCache;
 use ToroUnit\OpenRouterAiProvider\Tests\Mocks\MockHttpTransporter;
+use WordPress\AiClient\AiClient;
 use WordPress\AiClient\Files\Enums\FileTypeEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication;
@@ -314,7 +317,7 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
 
     public function testEmbeddingModelsAdvertiseDimensionsFromSupportedParameters(): void
     {
-        $directory = new class extends OpenRouterModelMetadataDirectory {
+        $directory = new class (true) extends OpenRouterModelMetadataDirectory {
             /**
              * @return list<ModelMetadata>
              */
@@ -333,6 +336,130 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
         $this->assertContains((string) OptionEnum::dimensions(), $this->getOptionNames($models[0]));
     }
 
+    public function testExposesModelIdsWithoutVendorByDefault(): void
+    {
+        $directory = new OpenRouterModelMetadataDirectory();
+        $directory->setHttpTransporter($this->createFixtureTransporter());
+        $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+        $directory->invalidateCaches();
+
+        $ids = array_map(
+            static function (ModelMetadata $metadata): string {
+                return $metadata->getId();
+            },
+            $directory->listModelMetadata()
+        );
+
+        $this->assertSame(
+            [
+                // OpenRouter's own routers keep their full IDs, since "free" and "auto" are meaningless alone.
+                'openrouter/free',
+                'claude-haiku-5.5',
+                // Anthropic's own model IDs use dashes instead of dots.
+                'claude-haiku-5-5',
+                'nemotron-3.5-super-vl:free',
+                'muse-spark-open',
+                'gemini-nano-banana-2.1',
+                'openrouter/auto',
+                'gpt-audio-mini',
+                'lyria-3-clip-preview',
+                'nemotron-3.5-embed-1b:free',
+                'text-embedding-ada-002',
+                'text-embedding-3-small',
+            ],
+            $ids
+        );
+    }
+
+    /**
+     * @dataProvider dataOpenRouterModelIds
+     */
+    public function testModelMetadataKeepsOpenRouterModelId(string $modelId, string $expectedModelId): void
+    {
+        $directory = new OpenRouterModelMetadataDirectory();
+        $directory->setHttpTransporter($this->createFixtureTransporter());
+        $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+        $directory->invalidateCaches();
+
+        $metadata = $directory->getModelMetadata($modelId);
+
+        $this->assertInstanceOf(OpenRouterModelMetadata::class, $metadata);
+        $this->assertSame($expectedModelId, $metadata->getOpenRouterModelId());
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public function dataOpenRouterModelIds(): array
+    {
+        return [
+            'flat' => ['nemotron-3.5-super-vl:free', 'nvidia/nemotron-3.5-super-vl:free'],
+            'anthropic alias' => ['claude-haiku-5-5', 'anthropic/claude-haiku-5.5'],
+            'router' => ['openrouter/free', 'openrouter/free'],
+            'embedding' => ['text-embedding-3-small', 'openai/text-embedding-3-small'],
+        ];
+    }
+
+    public function testOpenRouterModelIdIsKeptWhenModelsComeFromCache(): void
+    {
+        AiClient::setCache(new ArrayCache());
+        try {
+            $first = new OpenRouterModelMetadataDirectory();
+            $first->setHttpTransporter($this->createFixtureTransporter());
+            $first->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $first->invalidateCaches();
+            $first->listModelMetadata();
+
+            // A later request reads the models from the persistent cache instead of the API.
+            $transporter = new MockHttpTransporter();
+            $second = new OpenRouterModelMetadataDirectory();
+            $second->setHttpTransporter($transporter);
+            $second->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+
+            $metadata = $second->getModelMetadata('claude-haiku-5.5');
+            $this->assertInstanceOf(OpenRouterModelMetadata::class, $metadata);
+            $this->assertSame('anthropic/claude-haiku-5.5', $metadata->getOpenRouterModelId());
+            $this->assertSame([], $transporter->getRequests());
+
+            // Models cached in the other model ID format are not used.
+            $fullIds = new OpenRouterModelMetadataDirectory(true);
+            $fullIds->setHttpTransporter($this->createFixtureTransporter());
+            $fullIds->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+            $this->assertTrue($fullIds->hasModelMetadata('anthropic/claude-haiku-5.5'));
+            $this->assertFalse($fullIds->hasModelMetadata('claude-haiku-5.5'));
+        } finally {
+            AiClient::setCache(null);
+        }
+    }
+
+    public function testOldestModelKeepsFlatModelIdWhenItIsTaken(): void
+    {
+        $models = $this->parseResponse(
+            [
+                ['id' => 'vendor-new/model', 'created' => 200],
+                ['id' => 'vendor-old/model', 'created' => 100],
+            ],
+            false
+        );
+
+        $this->assertSame(['vendor-new/model', 'model'], array_keys($models));
+        $this->assertInstanceOf(OpenRouterModelMetadata::class, $models['model']);
+        $this->assertSame('vendor-old/model', $models['model']->getOpenRouterModelId());
+    }
+
+    public function testDoesNotAddAliasForPrefixedAnthropicModel(): void
+    {
+        $models = $this->parseResponse(
+            [
+                ['id' => 'other/claude-opus-4.7', 'created' => 100],
+                ['id' => 'anthropic/claude-opus-4.7', 'created' => 200],
+            ],
+            false
+        );
+
+        $this->assertSame(['claude-opus-4.7', 'anthropic/claude-opus-4.7'], array_keys($models));
+    }
+
     private function createFixtureTransporter(): MockHttpTransporter
     {
         $fixtures = dirname(__DIR__, 2) . '/fixtures';
@@ -344,7 +471,7 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
 
     private function createDirectory(MockHttpTransporter $transporter): OpenRouterModelMetadataDirectory
     {
-        $directory = new OpenRouterModelMetadataDirectory();
+        $directory = new OpenRouterModelMetadataDirectory(true);
         $directory->setHttpTransporter($transporter);
         $directory->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test-' . uniqid()));
         // Each test needs a fresh model list, since it is cached per class.
@@ -366,11 +493,13 @@ class OpenRouterModelMetadataDirectoryTest extends TestCase
 
     /**
      * @param list<array<string, mixed>> $data
+     * @param bool $useFullModelIds Whether to expose OpenRouter's model IDs.
      * @return array<string, ModelMetadata> Map of model ID to metadata, in list order.
      */
-    private function parseResponse(array $data): array
+    private function parseResponse(array $data, bool $useFullModelIds = true): array
     {
-        $directory = new class extends OpenRouterModelMetadataDirectory {
+        // Most tests check OpenRouter's model IDs, so the full model IDs are used.
+        $directory = new class ($useFullModelIds) extends OpenRouterModelMetadataDirectory {
             public function exposeParseResponseToModelMetadataList(Response $response): array
             {
                 return $this->parseResponseToModelMetadataList($response);

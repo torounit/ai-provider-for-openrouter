@@ -41,6 +41,26 @@ class OpenRouterImageGenerationModelTest extends TestCase
         $this->assertCount(1, $result->getCandidates());
     }
 
+    public function testGenerateImageResultSendsOpenRouterModelId(): void
+    {
+        $transporter = new MockHttpTransporter([$this->createImageResponse()]);
+        $model = new OpenRouterImageGenerationModel(
+            new ModelMetadata('gemini-3.1-flash-lite-image', 'Image', [CapabilityEnum::imageGeneration()], []),
+            OpenRouterProvider::metadata(),
+            'google/gemini-3.1-flash-lite-image'
+        );
+        $model->setHttpTransporter($transporter);
+        $model->setRequestAuthentication(new ApiKeyRequestAuthentication('sk-or-test'));
+
+        $model->generateImageResult([$this->createUserMessage('A cat')]);
+
+        $request = $transporter->getLastRequest();
+        $this->assertNotNull($request);
+        $data = $request->getData();
+        $this->assertNotNull($data);
+        $this->assertSame('google/gemini-3.1-flash-lite-image', $data['model']);
+    }
+
     public function testGenerateImageResultParsesImageWithMediaTypeAndUsage(): void
     {
         $model = $this->createModel(new MockHttpTransporter([$this->createImageResponse('image/jpeg')]));

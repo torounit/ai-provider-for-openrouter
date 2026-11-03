@@ -35,9 +35,10 @@ class OpenRouterTextAndImageGenerationModel extends AbstractOpenRouterTextAndMed
      */
     protected function createMediaModel(
         ModelMetadata $metadata,
-        ProviderMetadata $providerMetadata
+        ProviderMetadata $providerMetadata,
+        ?string $openRouterModelId
     ): AbstractApiBasedModel {
-        return new OpenRouterImageGenerationModel($metadata, $providerMetadata);
+        return new OpenRouterImageGenerationModel($metadata, $providerMetadata, $openRouterModelId);
     }
 
     /**
