@@ -68,9 +68,12 @@ class OpenRouterTextGenerationModel extends AbstractOpenAiCompatibleTextGenerati
      * Adds support for documents and text files, which are sent as `file` content parts, either inline or by URL.
      * Like the AI Provider for OpenAI, this leaves it to the API to reject file types that it does not support.
      *
+     * Based on the AI Provider for OpenAI, which also sends all other files as files.
+     *
      * @since 0.1.0
      *
      * @link https://openrouter.ai/docs/guides/overview/multimodal/pdfs
+     * @link https://github.com/WordPress/ai-provider-for-openai/blob/24ba3be/src/Models/OpenAiTextGenerationModel.php
      */
     protected function getMessagePartContentData(MessagePart $part): ?array
     {
